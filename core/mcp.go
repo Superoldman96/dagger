@@ -46,14 +46,22 @@ type MCP struct {
 	needsSystemPrompt bool
 	// Only show these functions, if non-empty
 	functionMask map[string]bool
+	// Indicates that the model has returned
+	returned bool
 }
 
-func NewMCP(endpoint *LLMEndpoint) *MCP {
-	return &MCP{
-		env:               NewEnv(),
-		functionMask:      map[string]bool{},
-		needsSystemPrompt: endpoint.Provider == Google,
+func newMCP(env *Env, endpoint *LLMEndpoint) *MCP {
+	m := &MCP{
+		env:          env,
+		functionMask: map[string]bool{},
 	}
+	if env.Root() != nil {
+		m.Select(env.Root())
+	}
+	if endpoint != nil {
+		m.needsSystemPrompt = (endpoint.Provider == Google)
+	}
+	return m
 }
 
 //go:embed llm_dagger_prompt.md
@@ -543,6 +551,7 @@ Each parameter corresponds to a named result with a specific purpose. Do not cal
 					return nil, fmt.Errorf("undefined output: %q", name)
 				}
 			}
+			m.returned = true
 			return "ok", nil
 		},
 	}
@@ -682,6 +691,10 @@ func (m *MCP) envGetters() []LLMTool {
 		})
 	}
 	return tools
+}
+
+func (m *MCP) IsDone() bool {
+	return len(m.env.outputsByName) == 0 || m.returned
 }
 
 func (m *MCP) toolToID(tool LLMTool, args any) (*call.ID, error) {
