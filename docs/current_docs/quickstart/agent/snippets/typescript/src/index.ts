@@ -1,4 +1,4 @@
-import { dag, Container, object, func } from "@dagger.io/dagger"
+import { dag, object, func, Container } from "@dagger.io/dagger"
 
 @object()
 export class CodingAgent {
@@ -12,21 +12,29 @@ export class CodingAgent {
      */
     assignment: string,
   ): Container {
-    const result = dag
+    const workspace = dag.toyWorkspace()
+    const environment = dag
+      .env()
+      .withToyWorkspaceInput(
+        "before",
+        workspace,
+        "tools to complete the assignment",
+      )
+      .withStringInput("assignment", assignment, "the assignment to complete")
+      .withToyWorkspaceOutput("after", "the completed assignment")
+
+    return dag
       .llm()
-      .withToyWorkspace(dag.toyWorkspace())
-      .withPromptVar("assignment", assignment)
+      .withEnv(environment)
       .withPrompt(
-        `
-        You are an expert go programmer. You have access to a workspace.
+        `You are an expert go programmer. You have access to a workspace.
         Use the default directory in the workspace.
         Do not stop until the code builds.
-        Do not use the container.
-        Complete the assignment: $assignment
-        `,
+        Your assignment is: $assignment`,
       )
-      .toyWorkspace()
+      .env()
+      .output("after")
+      .asToyWorkspace()
       .container()
-    return result
   }
 }

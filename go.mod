@@ -5,15 +5,15 @@ go 1.23.0
 toolchain go1.23.6
 
 require (
-	dagger.io/dagger v0.17.2
-	github.com/dagger/dagger/engine/distconsts v0.17.2
+	dagger.io/dagger v0.18.0
+	github.com/dagger/dagger/engine/distconsts v0.18.0
 	github.com/moby/buildkit v0.16.0-rc2.0.20240917172113-e15601a00fbe // https://github.com/moby/buildkit/commit/e15601a00fbef2805db1ed87be7bb88628ae926b
 )
 
 replace (
 	dagger.io/dagger => ./sdk/go
 	github.com/dagger/dagger/engine/distconsts => ./engine/distconsts
-	github.com/moby/buildkit => github.com/dagger/buildkit v0.0.0-20250128235329-9c8ee9e867a5
+	github.com/moby/buildkit => github.com/dagger/buildkit v0.0.0-20250408094436-36852ce82849
 )
 
 require (

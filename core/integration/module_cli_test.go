@@ -562,6 +562,27 @@ func (CLISuite) TestDaggerDevelop(ctx context.Context, t *testctx.T) {
 		require.NoError(t, err)
 		require.Equal(t, "hi from work hi from dep", strings.TrimSpace(out))
 	})
+
+	t.Run("recursive", func(ctx context.Context, t *testctx.T) {
+		c := connect(ctx, t)
+
+		base := c.Container().From(golangImage).
+			WithMountedFile(testCLIBinPath, daggerCliFile(t, c)).
+			WithWorkdir("/work/dep").
+			With(daggerExec("init", "--source=.", "--name=dep", "--sdk=go")).
+			WithExec([]string{"rm", "dagger.gen.go"}).
+			WithWorkdir("/work").
+			With(daggerExec("init", "--source=.", "--sdk=go")).
+			With(daggerExec("install", "./dep")).
+			WithExec([]string{"rm", "dagger.gen.go"})
+		developed := base.With(daggerExec("develop", "--recursive"))
+
+		// check that the developed files get recreated
+		_, err := developed.File("/work/dagger.gen.go").Contents(ctx)
+		require.NoError(t, err)
+		_, err = developed.File("/work/dep/dagger.gen.go").Contents(ctx)
+		require.NoError(t, err)
+	})
 }
 
 func (CLISuite) TestDaggerInstall(ctx context.Context, t *testctx.T) {
@@ -1042,7 +1063,7 @@ func (CLISuite) TestCLIFunctions(ctx context.Context, t *testctx.T) {
 
 import (
 	"context"
-	
+
 	"dagger/test/internal/dagger"
 )
 
@@ -1139,7 +1160,7 @@ func (m *OtherObj) FnE() *dagger.Container {
 		lines := strings.Split(out, "\n")
 		// just verify some of the container funcs are there, too many to be exhaustive
 		require.Contains(t, lines, "file                          Retrieves a file at the given path.")
-		require.Contains(t, lines, "as-tarball                    Returns a File representing the container serialized to a tarball.")
+		require.Contains(t, lines, "as-tarball                    Package the container state as an OCI image, and return it as a tar archive")
 	})
 
 	t.Run("return primitive", func(ctx context.Context, t *testctx.T) {
@@ -1153,7 +1174,7 @@ func (m *OtherObj) FnE() *dagger.Container {
 		lines := strings.Split(out, "\n")
 		// just verify some of the container funcs are there, too many to be exhaustive
 		require.Contains(t, lines, "file                          Retrieves a file at the given path.")
-		require.Contains(t, lines, "as-tarball                    Returns a File representing the container serialized to a tarball.")
+		require.Contains(t, lines, "as-tarball                    Package the container state as an OCI image, and return it as a tar archive")
 	})
 
 	t.Run("return user interface", func(ctx context.Context, t *testctx.T) {
@@ -1432,17 +1453,17 @@ func (CLISuite) TestDaggerUpdate(ctx context.Context, t *testctx.T) {
 	// we pin the dep to a random commit and then verify
 	// that the update actually changes the pin
 	noDeps := `{
-		"name": "foo", 
+		"name": "foo",
 		"sdk": "go"
 	}`
 
 	// pin a random old commit to verify pin is changed
 	depHasOldVersion := `{
-		"name": "foo", 
-		"sdk": "go", 
+		"name": "foo",
+		"sdk": "go",
 		"dependencies": [
-			{ 
-				"name": "docker", 
+			{
+				"name": "docker",
 				"source": "github.com/shykes/daggerverse/docker@docker/v0.4.1",
 				"pin": "` + randomMainPin + `"
 			}
@@ -1450,11 +1471,11 @@ func (CLISuite) TestDaggerUpdate(ctx context.Context, t *testctx.T) {
 	}`
 
 	depHasBranch := `{
-		"name": "foo", 
-		"sdk": "go", 
+		"name": "foo",
+		"sdk": "go",
 		"dependencies": [
-			{ 
-				"name": "docker", 
+			{
+				"name": "docker",
 				"source": "github.com/shykes/daggerverse/docker@main",
 				"pin": "` + randomMainPin + `"
 			}
@@ -1462,22 +1483,22 @@ func (CLISuite) TestDaggerUpdate(ctx context.Context, t *testctx.T) {
 	}`
 
 	depIsLocal := `{
-		"name": "foo", 
-		"sdk": "go", 
+		"name": "foo",
+		"sdk": "go",
 		"dependencies": [
-			{ 
-				"name": "bar", 
+			{
+				"name": "bar",
 				"source": "./bar"
 			}
 		]
 	}`
 
 	depHasNoVersion := `{
-		"name": "foo", 
-		"sdk": "go", 
+		"name": "foo",
+		"sdk": "go",
 		"dependencies": [
-			{ 
-				"name": "docker", 
+			{
+				"name": "docker",
 				"source": "github.com/shykes/daggerverse/docker",
 				"pin": "` + randomMainPin + `"
 			}
@@ -1485,16 +1506,16 @@ func (CLISuite) TestDaggerUpdate(ctx context.Context, t *testctx.T) {
 	}`
 
 	multipleDeps := `{
-		"name": "foo", 
-		"sdk": "go", 
+		"name": "foo",
+		"sdk": "go",
 		"dependencies": [
-			{ 
-				"name": "docker", 
+			{
+				"name": "docker",
 				"source": "github.com/shykes/daggerverse/docker@v0.4.1",
 				"pin": "` + randomMainPin + `"
 			},
-			{ 
-				"name": "wolfi", 
+			{
+				"name": "wolfi",
 				"source": "github.com/shykes/daggerverse/wolfi@v0.1.3",
 				"pin": "` + randomWolfiPin + `"
 			}
@@ -1663,5 +1684,91 @@ func (CLISuite) TestInvalidModule(ctx context.Context, t *testctx.T) {
 
 		_, err := modGen.With(daggerQuery(`{version}`)).Stdout(ctx)
 		requireErrOut(t, err, `failed to check if module exists`)
+	})
+}
+
+func (CLISuite) TestNoSDK(ctx context.Context, t *testctx.T) {
+	c := connect(ctx, t)
+
+	helloCode := `package main
+
+// A Dagger module to say hello to the world!
+type Hello struct{}
+
+// Hello prints out a greeting
+func (m *Hello) Hello() string {
+	return "hi"
+}
+`
+
+	// Set up the base container with Dagger CLI
+	base := goGitBase(t, c).
+		WithMountedFile(testCLIBinPath, daggerCliFile(t, c)).
+		WithWorkdir("/work")
+
+	// Create the nested module structure and initialize modules
+	testCtr := base.
+		// Initialize 'hello' module with Go SDK
+		WithWorkdir("/work/test/nosdk/hello").
+		With(daggerExec("init", "--sdk=go", "--name=hello")).
+		WithNewFile("main.go", helloCode).
+		// Initialize 'nosdk' module and install 'hello'
+		WithWorkdir("/work/test/nosdk").
+		With(daggerExec("init", "--name=nosdk")).
+		With(daggerExec("install", "./hello")).
+		// Initialize 'test' module and install 'nosdk'
+		WithWorkdir("/work/test").
+		With(daggerExec("init", "--name=test")).
+		With(daggerExec("install", "./nosdk"))
+
+	// Verify that the top-level 'test' module has no SDK
+	daggerJSON, err := testCtr.File("dagger.json").Contents(ctx)
+	require.NoError(t, err)
+	require.NotContains(t, daggerJSON, `"sdk"`)
+
+	t.Run("shell help does not segfault and stdlib functions are shown", func(ctx context.Context, t *testctx.T) {
+		out, err := testCtr.With(daggerShell(".help")).Stdout(ctx)
+		require.NoError(t, err)
+		require.Contains(t, out, "container") // stdlib
+		require.Contains(t, out, "directory") // stdlib
+		require.Contains(t, out, "Use \".help <command> | <function>\" for more information.")
+	})
+
+	t.Run("core types are still available and working", func(ctx context.Context, t *testctx.T) {
+		out, err := testCtr.With(daggerShell("container | from alpine | with-exec echo Hello | stdout")).Stdout(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "Hello\n", out)
+	})
+
+	t.Run("functions with no SDK show just the headers", func(ctx context.Context, t *testctx.T) {
+		out, err := testCtr.With(daggerExec("functions")).Stdout(ctx)
+		require.NoError(t, err)
+
+		// Split output into lines and verify it's empty except for headers
+		lines := strings.Split(strings.TrimSpace(out), "\n")
+		require.LessOrEqual(t, len(lines), 2, "Should only show headers or be empty")
+
+		// If there are lines, they should only be "Name, Description" header
+		if len(lines) > 0 {
+			for _, line := range lines {
+				// Skip empty lines
+				if strings.TrimSpace(line) == "" {
+					continue
+				}
+				require.Contains(t, line, "Name", "Should only contain header")
+				require.Contains(t, line, "Description", "Should only contain header")
+			}
+		}
+	})
+
+	t.Run("call a module without sdk", func(ctx context.Context, t *testctx.T) {
+		_, err := testCtr.WithWorkdir("/work/test/nosdk").With(daggerExec("call")).Stdout(ctx)
+		require.NoError(t, err)
+	})
+
+	t.Run("no-sdk module can load module with sdk", func(ctx context.Context, t *testctx.T) {
+		out, err := testCtr.WithWorkdir("/work/test/nosdk").With(daggerShell("hello | hello")).Stdout(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "hi", out)
 	})
 }

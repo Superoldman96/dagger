@@ -655,7 +655,7 @@ type ContainerAsTarballOpts struct {
 	MediaTypes ImageMediaTypes
 }
 
-// Returns a File representing the container serialized to a tarball.
+// Package the container state as an OCI image, and return it as a tar archive
 func (r *Container) AsTarball(opts ...ContainerAsTarballOpts) *File {
 	q := r.query.Select("asTarball")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -692,6 +692,10 @@ type ContainerBuildOpts struct {
 	//
 	// They can be accessed in the Dockerfile using the "secret" mount type and mount path /run/secrets/[secret-name], e.g. RUN --mount=type=secret,id=my-secret curl [http://example.com?token=$(cat /run/secrets/my-secret)](http://example.com?token=$(cat /run/secrets/my-secret))
 	Secrets []*Secret
+	// If set, skip the automatic init process injected into containers created by RUN statements.
+	//
+	// This should only be used if the user requires that their exec processes be the pid 1 process in the container. Otherwise it may result in unexpected behavior.
+	NoInit bool
 }
 
 // Initializes this container from a Dockerfile build.
@@ -715,6 +719,10 @@ func (r *Container) Build(context *Directory, opts ...ContainerBuildOpts) *Conta
 		if !querybuilder.IsZeroValue(opts[i].Secrets) {
 			q = q.Arg("secrets", opts[i].Secrets)
 		}
+		// `noInit` optional argument
+		if !querybuilder.IsZeroValue(opts[i].NoInit) {
+			q = q.Arg("noInit", opts[i].NoInit)
+		}
 	}
 	q = q.Arg("context", context)
 
@@ -723,7 +731,7 @@ func (r *Container) Build(context *Directory, opts ...ContainerBuildOpts) *Conta
 	}
 }
 
-// Retrieves default arguments for future commands.
+// Return the container's default arguments.
 func (r *Container) DefaultArgs(ctx context.Context) ([]string, error) {
 	q := r.query.Select("defaultArgs")
 
@@ -739,7 +747,7 @@ type ContainerDirectoryOpts struct {
 	Expand bool
 }
 
-// Retrieves a directory at the given path.
+// Retrieve a directory from the container's root filesystem
 //
 // Mounts are included.
 func (r *Container) Directory(path string, opts ...ContainerDirectoryOpts) *Directory {
@@ -757,7 +765,7 @@ func (r *Container) Directory(path string, opts ...ContainerDirectoryOpts) *Dire
 	}
 }
 
-// Retrieves entrypoint to be prepended to the arguments of all commands.
+// Return the container's OCI entrypoint.
 func (r *Container) Entrypoint(ctx context.Context) ([]string, error) {
 	q := r.query.Select("entrypoint")
 
@@ -814,9 +822,9 @@ func (r *Container) EnvVariables(ctx context.Context) ([]EnvVariable, error) {
 	return convert(response), nil
 }
 
-// The exit code of the last executed command.
+// The exit code of the last executed command
 //
-// Returns an error if no command was set.
+// Returns an error if no command was executed
 func (r *Container) ExitCode(ctx context.Context) (int, error) {
 	if r.exitCode != nil {
 		return *r.exitCode, nil
@@ -967,7 +975,7 @@ func (r *Container) File(path string, opts ...ContainerFileOpts) *File {
 	}
 }
 
-// Initializes this container from a pulled base image.
+// Download a container image, and apply it to the container state. All previous state will be lost.
 func (r *Container) From(address string) *Container {
 	q := r.query.Select("from")
 	q = q.Arg("address", address)
@@ -1135,15 +1143,13 @@ type ContainerPublishOpts struct {
 	ForcedCompression ImageLayerCompression
 	// Use the specified media types for the published image's layers.
 	//
-	// Defaults to OCI, which is largely compatible with most recent registries, but Docker may be needed for older registries without OCI support.
+	// Defaults to "OCI", which is compatible with most recent registries, but "Docker" may be needed for older registries without OCI support.
 	MediaTypes ImageMediaTypes
 }
 
-// Publishes this container as a new image to the specified address.
+// Package the container state as an OCI image, and publish it to a registry
 //
-// Publish returns a fully qualified ref.
-//
-// It can also publish platform variants.
+// Returns the fully qualified address of the published image, with digest
 func (r *Container) Publish(ctx context.Context, address string, opts ...ContainerPublishOpts) (string, error) {
 	if r.publish != nil {
 		return *r.publish, nil
@@ -1171,7 +1177,7 @@ func (r *Container) Publish(ctx context.Context, address string, opts ...Contain
 	return response, q.Execute(ctx)
 }
 
-// Retrieves this container's root filesystem. Mounts are not included.
+// Return a snapshot of the container's root filesystem. The snapshot can be modified then written back using withRootfs. Use that method for filesystem modifications.
 func (r *Container) Rootfs() *Directory {
 	q := r.query.Select("rootfs")
 
@@ -1180,9 +1186,9 @@ func (r *Container) Rootfs() *Directory {
 	}
 }
 
-// The error stream of the last executed command.
+// The buffered standard error stream of the last executed command
 //
-// Returns an error if no command was set.
+// Returns an error if no command was executed
 func (r *Container) Stderr(ctx context.Context) (string, error) {
 	if r.stderr != nil {
 		return *r.stderr, nil
@@ -1195,9 +1201,9 @@ func (r *Container) Stderr(ctx context.Context) (string, error) {
 	return response, q.Execute(ctx)
 }
 
-// The output stream of the last executed command.
+// The buffered standard output stream of the last executed command
 //
-// Returns an error if no command was set.
+// Returns an error if no command was executed
 func (r *Container) Stdout(ctx context.Context) (string, error) {
 	if r.stdout != nil {
 		return *r.stdout, nil
@@ -1358,7 +1364,7 @@ func (r *Container) WithAnnotation(name string, value string) *Container {
 	}
 }
 
-// Configures default arguments for future commands.
+// Configures default arguments for future commands. Like CMD in Dockerfile.
 func (r *Container) WithDefaultArgs(args []string) *Container {
 	q := r.query.Select("withDefaultArgs")
 	q = q.Arg("args", args)
@@ -1414,7 +1420,7 @@ type ContainerWithDirectoryOpts struct {
 	Expand bool
 }
 
-// Retrieves this container plus a directory written at the given path.
+// Return a new container snapshot, with a directory added to its filesystem
 func (r *Container) WithDirectory(path string, directory *Directory, opts ...ContainerWithDirectoryOpts) *Container {
 	assertNotNil("directory", directory)
 	q := r.query.Select("withDirectory")
@@ -1446,11 +1452,11 @@ func (r *Container) WithDirectory(path string, directory *Directory, opts ...Con
 
 // ContainerWithEntrypointOpts contains options for Container.WithEntrypoint
 type ContainerWithEntrypointOpts struct {
-	// Don't remove the default arguments when setting the entrypoint.
+	// Don't reset the default arguments when setting the entrypoint. By default it is reset, since entrypoint and default args are often tightly coupled.
 	KeepDefaultArgs bool
 }
 
-// Retrieves this container but with a different command entrypoint.
+// Set an OCI-style entrypoint. It will be included in the container's OCI configuration. Note, withExec ignores the entrypoint by default.
 func (r *Container) WithEntrypoint(args []string, opts ...ContainerWithEntrypointOpts) *Container {
 	q := r.query.Select("withEntrypoint")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -1472,7 +1478,7 @@ type ContainerWithEnvVariableOpts struct {
 	Expand bool
 }
 
-// Retrieves this container plus the given environment variable.
+// Set a new environment variable in the container.
 func (r *Container) WithEnvVariable(name string, value string, opts ...ContainerWithEnvVariableOpts) *Container {
 	q := r.query.Select("withEnvVariable")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -1491,31 +1497,31 @@ func (r *Container) WithEnvVariable(name string, value string, opts ...Container
 
 // ContainerWithExecOpts contains options for Container.WithExec
 type ContainerWithExecOpts struct {
-	// If the container has an entrypoint, prepend it to the args.
+	// Apply the OCI entrypoint, if present, by prepending it to the args. Ignored by default.
 	UseEntrypoint bool
-	// Content to write to the command's standard input before closing (e.g., "Hello world").
+	// Content to write to the command's standard input. Example: "Hello world")
 	Stdin string
-	// Redirect the command's standard output to a file in the container (e.g., "/tmp/stdout").
+	// Redirect the command's standard output to a file in the container. Example: "./stdout.txt"
 	RedirectStdout string
-	// Redirect the command's standard error to a file in the container (e.g., "/tmp/stderr").
+	// Like redirectStdout, but for standard error
 	RedirectStderr string
 	// Exit codes this command is allowed to exit with without error
 	Expect ReturnType
 	// Provides Dagger access to the executed command.
-	//
-	// Do not use this option unless you trust the command being executed; the command being executed WILL BE GRANTED FULL ACCESS TO YOUR HOST FILESYSTEM.
 	ExperimentalPrivilegedNesting bool
-	// Execute the command with all root capabilities. This is similar to running a command with "sudo" or executing "docker run" with the "--privileged" flag. Containerization does not provide any security guarantees when using this option. It should only be used when absolutely necessary and only with trusted commands.
+	// Execute the command with all root capabilities. Like --privileged in Docker
+	//
+	// DANGER: this grants the command full access to the host system. Only use when 1) you trust the command being executed and 2) you specifically need this level of access.
 	InsecureRootCapabilities bool
 	// Replace "${VAR}" or "$VAR" in the args according to the current environment variables defined in the container (e.g. "/$VAR/foo").
 	Expand bool
-	// If set, skip the automatic init process injected into containers by default.
+	// Skip the automatic init process injected into containers by default.
 	//
-	// This should only be used if the user requires that their exec process be the pid 1 process in the container. Otherwise it may result in unexpected behavior.
+	// Only use this if you specifically need the command to be pid 1 in the container. Otherwise it may result in unexpected behavior. If you're not sure, you don't need this.
 	NoInit bool
 }
 
-// Retrieves this container after executing the specified command inside it.
+// Execute a command in the container, and return a new snapshot of the container state after execution.
 func (r *Container) WithExec(args []string, opts ...ContainerWithExecOpts) *Container {
 	q := r.query.Select("withExec")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -1565,15 +1571,15 @@ func (r *Container) WithExec(args []string, opts ...ContainerWithExecOpts) *Cont
 
 // ContainerWithExposedPortOpts contains options for Container.WithExposedPort
 type ContainerWithExposedPortOpts struct {
-	// Transport layer network protocol
+	// Network protocol. Example: "tcp"
 	Protocol NetworkProtocol
-	// Optional port description
+	// Port description. Example: "payment API endpoint"
 	Description string
 	// Skip the health check when run as a service.
 	ExperimentalSkipHealthcheck bool
 }
 
-// Expose a network port.
+// Expose a network port. Like EXPOSE in Dockerfile (but with healthcheck support)
 //
 // Exposed ports serve two purposes:
 //
@@ -1605,7 +1611,7 @@ func (r *Container) WithExposedPort(port int, opts ...ContainerWithExposedPortOp
 
 // ContainerWithFileOpts contains options for Container.WithFile
 type ContainerWithFileOpts struct {
-	// Permission given to the copied file (e.g., 0600).
+	// Permissions of the new file. Example: 0600
 	Permissions int
 	// A user:group to set for the file.
 	//
@@ -1617,7 +1623,7 @@ type ContainerWithFileOpts struct {
 	Expand bool
 }
 
-// Retrieves this container plus the contents of the given file copied to the given path.
+// Return a container snapshot with a file added
 func (r *Container) WithFile(path string, source *File, opts ...ContainerWithFileOpts) *Container {
 	assertNotNil("source", source)
 	q := r.query.Select("withFile")
@@ -1881,7 +1887,7 @@ func (r *Container) WithMountedTemp(path string, opts ...ContainerWithMountedTem
 
 // ContainerWithNewFileOpts contains options for Container.WithNewFile
 type ContainerWithNewFileOpts struct {
-	// Permission given to the written file (e.g., 0600).
+	// Permissions of the new file. Example: 0600
 	Permissions int
 	// A user:group to set for the file.
 	//
@@ -1893,7 +1899,7 @@ type ContainerWithNewFileOpts struct {
 	Expand bool
 }
 
-// Retrieves this container plus a new file written at the given path.
+// Return a new container snapshot, with a file added to its filesystem
 func (r *Container) WithNewFile(path string, contents string, opts ...ContainerWithNewFileOpts) *Container {
 	q := r.query.Select("withNewFile")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -1918,7 +1924,7 @@ func (r *Container) WithNewFile(path string, contents string, opts ...ContainerW
 	}
 }
 
-// Retrieves this container with a registry authentication for a given address.
+// Attach credentials for future publishing to a registry. Use in combination with publish
 func (r *Container) WithRegistryAuth(address string, username string, secret *Secret) *Container {
 	assertNotNil("secret", secret)
 	q := r.query.Select("withRegistryAuth")
@@ -1931,7 +1937,7 @@ func (r *Container) WithRegistryAuth(address string, username string, secret *Se
 	}
 }
 
-// Retrieves the container with the given directory mounted to /.
+// Change the container's root filesystem. The previous root filesystem will be lost.
 func (r *Container) WithRootfs(directory *Directory) *Container {
 	assertNotNil("directory", directory)
 	q := r.query.Select("withRootfs")
@@ -1942,7 +1948,7 @@ func (r *Container) WithRootfs(directory *Directory) *Container {
 	}
 }
 
-// Retrieves this container plus an env variable containing the given secret.
+// Set a new environment variable, using a secret value
 func (r *Container) WithSecretVariable(name string, secret *Secret) *Container {
 	assertNotNil("secret", secret)
 	q := r.query.Select("withSecretVariable")
@@ -1954,7 +1960,7 @@ func (r *Container) WithSecretVariable(name string, secret *Secret) *Container {
 	}
 }
 
-// Establish a runtime dependency on a service.
+// Establish a runtime dependency on a from a container to a network service.
 //
 // The service will be started automatically when needed and detached when it is no longer needed, executing the default command if none is set.
 //
@@ -2022,7 +2028,7 @@ type ContainerWithWorkdirOpts struct {
 	Expand bool
 }
 
-// Retrieves this container with a different working directory.
+// Change the container's working directory. Like WORKDIR in Dockerfile.
 func (r *Container) WithWorkdir(path string, opts ...ContainerWithWorkdirOpts) *Container {
 	q := r.query.Select("withWorkdir")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -2048,7 +2054,7 @@ func (r *Container) WithoutAnnotation(name string) *Container {
 	}
 }
 
-// Retrieves this container with unset default arguments for future commands.
+// Remove the container's default arguments.
 func (r *Container) WithoutDefaultArgs() *Container {
 	q := r.query.Select("withoutDefaultArgs")
 
@@ -2063,7 +2069,7 @@ type ContainerWithoutDirectoryOpts struct {
 	Expand bool
 }
 
-// Retrieves this container with the directory at the given path removed.
+// Return a new container snapshot, with a directory removed from its filesystem
 func (r *Container) WithoutDirectory(path string, opts ...ContainerWithoutDirectoryOpts) *Container {
 	q := r.query.Select("withoutDirectory")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -2085,7 +2091,7 @@ type ContainerWithoutEntrypointOpts struct {
 	KeepDefaultArgs bool
 }
 
-// Retrieves this container with an unset command entrypoint.
+// Reset the container's OCI entrypoint.
 func (r *Container) WithoutEntrypoint(opts ...ContainerWithoutEntrypointOpts) *Container {
 	q := r.query.Select("withoutEntrypoint")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -2160,7 +2166,7 @@ type ContainerWithoutFilesOpts struct {
 	Expand bool
 }
 
-// Retrieves this container with the files at the given paths removed.
+// Return a new container spanshot with specified files removed
 func (r *Container) WithoutFiles(paths []string, opts ...ContainerWithoutFilesOpts) *Container {
 	q := r.query.Select("withoutFiles")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -2261,7 +2267,7 @@ func (r *Container) WithoutUser() *Container {
 	}
 }
 
-// Retrieves this container with an unset working directory.
+// Unset the container's working directory.
 //
 // Should default to "/".
 func (r *Container) WithoutWorkdir() *Container {
@@ -2424,7 +2430,7 @@ func (r *Directory) WithGraphQLQuery(q *querybuilder.Selection) *Directory {
 	}
 }
 
-// Converts this directory into a git repository
+// Converts this directory to a local git repository
 func (r *Directory) AsGit() *GitRepository {
 	q := r.query.Select("asGit")
 
@@ -2479,7 +2485,7 @@ func (r *Directory) AsModuleSource(opts ...DirectoryAsModuleSourceOpts) *ModuleS
 	}
 }
 
-// Gets the difference between this directory and an another directory.
+// Return the difference between this directory and an another directory. The difference is encoded as a directory.
 func (r *Directory) Diff(other *Directory) *Directory {
 	assertNotNil("other", other)
 	q := r.query.Select("diff")
@@ -2527,9 +2533,13 @@ type DirectoryDockerBuildOpts struct {
 	//
 	// They will be mounted at /run/secrets/[secret-name].
 	Secrets []*Secret
+	// If set, skip the automatic init process injected into containers created by RUN statements.
+	//
+	// This should only be used if the user requires that their exec processes be the pid 1 process in the container. Otherwise it may result in unexpected behavior.
+	NoInit bool
 }
 
-// Builds a new Docker container from this directory.
+// Use Dockerfile compatibility to build a container from this directory. Only use this function for Dockerfile compatibility. Otherwise use the native Container type directly, it is feature-complete and supports all Dockerfile features.
 func (r *Directory) DockerBuild(opts ...DirectoryDockerBuildOpts) *Container {
 	q := r.query.Select("dockerBuild")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -2552,6 +2562,10 @@ func (r *Directory) DockerBuild(opts ...DirectoryDockerBuildOpts) *Container {
 		// `secrets` optional argument
 		if !querybuilder.IsZeroValue(opts[i].Secrets) {
 			q = q.Arg("secrets", opts[i].Secrets)
+		}
+		// `noInit` optional argument
+		if !querybuilder.IsZeroValue(opts[i].NoInit) {
+			q = q.Arg("noInit", opts[i].NoInit)
 		}
 	}
 
@@ -2608,7 +2622,7 @@ func (r *Directory) Export(ctx context.Context, path string, opts ...DirectoryEx
 	return response, q.Execute(ctx)
 }
 
-// Retrieves a file at the given path.
+// Retrieve a file at the given path.
 func (r *Directory) File(path string) *File {
 	q := r.query.Select("file")
 	q = q.Arg("path", path)
@@ -2620,13 +2634,13 @@ func (r *Directory) File(path string) *File {
 
 // DirectoryFilterOpts contains options for Directory.Filter
 type DirectoryFilterOpts struct {
-	// Exclude artifacts that match the given pattern (e.g., ["node_modules/", ".git*"]).
+	// If set, paths matching one of these glob patterns is excluded from the new snapshot. Example: ["node_modules/", ".git*", ".env"]
 	Exclude []string
-	// Include only artifacts that match the given pattern (e.g., ["app/", "package.*"]).
+	// If set, only paths matching one of these glob patterns is included in the new snapshot. Example: (e.g., ["app/", "package.*"]).
 	Include []string
 }
 
-// Retrieves this directory as per exclude/include filters.
+// Return a snapshot with some paths included or excluded
 func (r *Directory) Filter(opts ...DirectoryFilterOpts) *Directory {
 	q := r.query.Select("filter")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -2771,7 +2785,7 @@ type DirectoryWithDirectoryOpts struct {
 	Include []string
 }
 
-// Retrieves this directory plus a directory written at the given path.
+// Return a snapshot with a directory added
 func (r *Directory) WithDirectory(path string, directory *Directory, opts ...DirectoryWithDirectoryOpts) *Directory {
 	assertNotNil("directory", directory)
 	q := r.query.Select("withDirectory")
@@ -2864,11 +2878,11 @@ func (r *Directory) WithNewDirectory(path string, opts ...DirectoryWithNewDirect
 
 // DirectoryWithNewFileOpts contains options for Directory.WithNewFile
 type DirectoryWithNewFileOpts struct {
-	// Permission given to the copied file (e.g., 0600).
+	// Permissions of the new file. Example: 0600
 	Permissions int
 }
 
-// Retrieves this directory plus a new file written at the given path.
+// Return a snapshot with a new file added
 func (r *Directory) WithNewFile(path string, contents string, opts ...DirectoryWithNewFileOpts) *Directory {
 	q := r.query.Select("withNewFile")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -2895,7 +2909,7 @@ func (r *Directory) WithTimestamps(timestamp int) *Directory {
 	}
 }
 
-// Retrieves this directory with the directory at the given path removed.
+// Return a snapshot with a subdirectory removed
 func (r *Directory) WithoutDirectory(path string) *Directory {
 	q := r.query.Select("withoutDirectory")
 	q = q.Arg("path", path)
@@ -2905,7 +2919,7 @@ func (r *Directory) WithoutDirectory(path string) *Directory {
 	}
 }
 
-// Retrieves this directory with the file at the given path removed.
+// Return a snapshot with a file removed
 func (r *Directory) WithoutFile(path string) *Directory {
 	q := r.query.Select("withoutFile")
 	q = q.Arg("path", path)
@@ -2915,7 +2929,7 @@ func (r *Directory) WithoutFile(path string) *Directory {
 	}
 }
 
-// Retrieves this directory with the files at the given paths removed.
+// Return a snapshot with files removed
 func (r *Directory) WithoutFiles(paths []string) *Directory {
 	q := r.query.Select("withoutFiles")
 	q = q.Arg("paths", paths)
@@ -5708,6 +5722,8 @@ func (r *Host) Service(ports []PortForward, opts ...HostServiceOpts) *Service {
 // Sets a secret given a user-defined name and the file path on the host, and returns the secret.
 //
 // The file is limited to a size of 512000 bytes.
+//
+// Deprecated: setSecretFile is superceded by use of the secret API with file:// URIs
 func (r *Host) SetSecretFile(name string, path string) *Secret {
 	q := r.query.Select("setSecretFile")
 	q = q.Arg("name", name)
@@ -6242,15 +6258,6 @@ func (r *LLM) WithPromptFile(file *File) *LLM {
 	assertNotNil("file", file)
 	q := r.query.Select("withPromptFile")
 	q = q.Arg("file", file)
-
-	return &LLM{
-		query: q,
-	}
-}
-
-// Provide the entire Query object to the LLM
-func (r *LLM) WithQuery() *LLM {
-	q := r.query.Select("withQuery")
 
 	return &LLM{
 		query: q,
@@ -7783,13 +7790,13 @@ func (r *Client) CacheVolume(key string, opts ...CacheVolumeOpts) *CacheVolume {
 
 // ContainerOpts contains options for Client.Container
 type ContainerOpts struct {
-	// Platform to initialize the container with.
+	// Platform to initialize the container with. Defaults to the native platform of the current engine
 	Platform Platform
 }
 
-// Creates a scratch container.
+// Creates a scratch container, with no image or metadata.
 //
-// Optional platform argument initializes new containers to execute and publish as that platform. Platform defaults to that of the builder's host.
+// To pull an image, follow up with the "from" function.
 func (r *Client) Container(opts ...ContainerOpts) *Container {
 	q := r.query.Select("container")
 	for i := len(opts) - 1; i >= 0; i-- {
@@ -7885,9 +7892,21 @@ func (r *Client) Engine() *Engine {
 	}
 }
 
+// EnvOpts contains options for Client.Env
+type EnvOpts struct {
+	// Give the environment the same privileges as the caller: core API including host access, current module, and dependencies
+	Privileged bool
+}
+
 // Initialize a new environment
-func (r *Client) Env() *Env {
+func (r *Client) Env(opts ...EnvOpts) *Env {
 	q := r.query.Select("env")
+	for i := len(opts) - 1; i >= 0; i-- {
+		// `privileged` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Privileged) {
+			q = q.Arg("privileged", opts[i].Privileged)
+		}
+	}
 
 	return &Env{
 		query: q,
@@ -8409,27 +8428,6 @@ func (r *Client) LoadScalarTypeDefFromID(id ScalarTypeDefID) *ScalarTypeDef {
 func (r *Client) LoadSecretFromID(id SecretID) *Secret {
 	q := r.query.Select("loadSecretFromID")
 	q = q.Arg("id", id)
-
-	return &Secret{
-		query: q,
-	}
-}
-
-// LoadSecretFromNameOpts contains options for Client.LoadSecretFromName
-type LoadSecretFromNameOpts struct {
-	Accessor string
-}
-
-// Load a Secret from its Name.
-func (r *Client) LoadSecretFromName(name string, opts ...LoadSecretFromNameOpts) *Secret {
-	q := r.query.Select("loadSecretFromName")
-	for i := len(opts) - 1; i >= 0; i-- {
-		// `accessor` optional argument
-		if !querybuilder.IsZeroValue(opts[i].Accessor) {
-			q = q.Arg("accessor", opts[i].Accessor)
-		}
-	}
-	q = q.Arg("name", name)
 
 	return &Secret{
 		query: q,

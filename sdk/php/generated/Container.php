@@ -49,7 +49,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Returns a File representing the container serialized to a tarball.
+     * Package the container state as an OCI image, and return it as a tar archive
      */
     public function asTarball(
         ?array $platformVariants = null,
@@ -78,6 +78,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
         ?string $target = '',
         ?array $buildArgs = null,
         ?array $secrets = null,
+        ?bool $noInit = false,
     ): Container {
         $innerQueryBuilder = new \Dagger\Client\QueryBuilder('build');
         $innerQueryBuilder->setArgument('context', $context);
@@ -93,11 +94,14 @@ class Container extends Client\AbstractObject implements Client\IdAble
         if (null !== $secrets) {
         $innerQueryBuilder->setArgument('secrets', $secrets);
         }
+        if (null !== $noInit) {
+        $innerQueryBuilder->setArgument('noInit', $noInit);
+        }
         return new \Dagger\Container($this->client, $this->queryBuilderChain->chain($innerQueryBuilder));
     }
 
     /**
-     * Retrieves default arguments for future commands.
+     * Return the container's default arguments.
      */
     public function defaultArgs(): array
     {
@@ -106,7 +110,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves a directory at the given path.
+     * Retrieve a directory from the container's root filesystem
      *
      * Mounts are included.
      */
@@ -121,7 +125,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves entrypoint to be prepended to the arguments of all commands.
+     * Return the container's OCI entrypoint.
      */
     public function entrypoint(): array
     {
@@ -149,9 +153,9 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * The exit code of the last executed command.
+     * The exit code of the last executed command
      *
-     * Returns an error if no command was set.
+     * Returns an error if no command was executed
      */
     public function exitCode(): int
     {
@@ -242,7 +246,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Initializes this container from a pulled base image.
+     * Download a container image, and apply it to the container state. All previous state will be lost.
      */
     public function from(string $address): Container
     {
@@ -320,11 +324,9 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Publishes this container as a new image to the specified address.
+     * Package the container state as an OCI image, and publish it to a registry
      *
-     * Publish returns a fully qualified ref.
-     *
-     * It can also publish platform variants.
+     * Returns the fully qualified address of the published image, with digest
      */
     public function publish(
         string $address,
@@ -347,7 +349,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container's root filesystem. Mounts are not included.
+     * Return a snapshot of the container's root filesystem. The snapshot can be modified then written back using withRootfs. Use that method for filesystem modifications.
      */
     public function rootfs(): Directory
     {
@@ -356,9 +358,9 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * The error stream of the last executed command.
+     * The buffered standard error stream of the last executed command
      *
-     * Returns an error if no command was set.
+     * Returns an error if no command was executed
      */
     public function stderr(): string
     {
@@ -367,9 +369,9 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * The output stream of the last executed command.
+     * The buffered standard output stream of the last executed command
      *
-     * Returns an error if no command was set.
+     * Returns an error if no command was executed
      */
     public function stdout(): string
     {
@@ -473,7 +475,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Configures default arguments for future commands.
+     * Configures default arguments for future commands. Like CMD in Dockerfile.
      */
     public function withDefaultArgs(array $args): Container
     {
@@ -502,7 +504,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container plus a directory written at the given path.
+     * Return a new container snapshot, with a directory added to its filesystem
      */
     public function withDirectory(
         string $path,
@@ -531,7 +533,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container but with a different command entrypoint.
+     * Set an OCI-style entrypoint. It will be included in the container's OCI configuration. Note, withExec ignores the entrypoint by default.
      */
     public function withEntrypoint(array $args, ?bool $keepDefaultArgs = false): Container
     {
@@ -544,7 +546,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container plus the given environment variable.
+     * Set a new environment variable in the container.
      */
     public function withEnvVariable(string $name, string $value, ?bool $expand = false): Container
     {
@@ -558,7 +560,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container after executing the specified command inside it.
+     * Execute a command in the container, and return a new snapshot of the container state after execution.
      */
     public function withExec(
         array $args,
@@ -605,7 +607,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Expose a network port.
+     * Expose a network port. Like EXPOSE in Dockerfile (but with healthcheck support)
      *
      * Exposed ports serve two purposes:
      *
@@ -634,7 +636,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container plus the contents of the given file copied to the given path.
+     * Return a container snapshot with a file added
      */
     public function withFile(
         string $path,
@@ -807,7 +809,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container plus a new file written at the given path.
+     * Return a new container snapshot, with a file added to its filesystem
      */
     public function withNewFile(
         string $path,
@@ -832,7 +834,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container with a registry authentication for a given address.
+     * Attach credentials for future publishing to a registry. Use in combination with publish
      */
     public function withRegistryAuth(string $address, string $username, SecretId|Secret $secret): Container
     {
@@ -844,7 +846,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves the container with the given directory mounted to /.
+     * Change the container's root filesystem. The previous root filesystem will be lost.
      */
     public function withRootfs(DirectoryId|Directory $directory): Container
     {
@@ -854,7 +856,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container plus an env variable containing the given secret.
+     * Set a new environment variable, using a secret value
      */
     public function withSecretVariable(string $name, SecretId|Secret $secret): Container
     {
@@ -865,7 +867,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Establish a runtime dependency on a service.
+     * Establish a runtime dependency on a from a container to a network service.
      *
      * The service will be started automatically when needed and detached when it is no longer needed, executing the default command if none is set.
      *
@@ -913,7 +915,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container with a different working directory.
+     * Change the container's working directory. Like WORKDIR in Dockerfile.
      */
     public function withWorkdir(string $path, ?bool $expand = false): Container
     {
@@ -936,7 +938,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container with unset default arguments for future commands.
+     * Remove the container's default arguments.
      */
     public function withoutDefaultArgs(): Container
     {
@@ -945,7 +947,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container with the directory at the given path removed.
+     * Return a new container snapshot, with a directory removed from its filesystem
      */
     public function withoutDirectory(string $path, ?bool $expand = false): Container
     {
@@ -958,7 +960,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container with an unset command entrypoint.
+     * Reset the container's OCI entrypoint.
      */
     public function withoutEntrypoint(?bool $keepDefaultArgs = false): Container
     {
@@ -1006,7 +1008,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container with the files at the given paths removed.
+     * Return a new container spanshot with specified files removed
      */
     public function withoutFiles(array $paths, ?bool $expand = false): Container
     {
@@ -1086,7 +1088,7 @@ class Container extends Client\AbstractObject implements Client\IdAble
     }
 
     /**
-     * Retrieves this container with an unset working directory.
+     * Unset the container's working directory.
      *
      * Should default to "/".
      */

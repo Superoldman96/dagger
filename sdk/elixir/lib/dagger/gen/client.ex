@@ -25,9 +25,9 @@ defmodule Dagger.Client do
   end
 
   @doc """
-  Creates a scratch container.
+  Creates a scratch container, with no image or metadata.
 
-  Optional platform argument initializes new containers to execute and publish as that platform. Platform defaults to that of the builder's host.
+  To pull an image, follow up with the "from" function.
   """
   @spec container(t(), [{:platform, Dagger.Platform.t() | nil}]) :: Dagger.Container.t()
   def container(%__MODULE__{} = client, optional_args \\ []) do
@@ -124,10 +124,12 @@ defmodule Dagger.Client do
   end
 
   @doc "Initialize a new environment"
-  @spec env(t()) :: Dagger.Env.t()
-  def env(%__MODULE__{} = client) do
+  @spec env(t(), [{:privileged, boolean() | nil}]) :: Dagger.Env.t()
+  def env(%__MODULE__{} = client, optional_args \\ []) do
     query_builder =
-      client.query_builder |> QB.select("env")
+      client.query_builder
+      |> QB.select("env")
+      |> QB.maybe_put_arg("privileged", optional_args[:privileged])
 
     %Dagger.Env{
       query_builder: query_builder,
@@ -710,22 +712,6 @@ defmodule Dagger.Client do
   def load_secret_from_id(%__MODULE__{} = client, id) do
     query_builder =
       client.query_builder |> QB.select("loadSecretFromID") |> QB.put_arg("id", id)
-
-    %Dagger.Secret{
-      query_builder: query_builder,
-      client: client.client
-    }
-  end
-
-  @doc "Load a Secret from its Name."
-  @spec load_secret_from_name(t(), String.t(), [{:accessor, String.t() | nil}]) ::
-          Dagger.Secret.t()
-  def load_secret_from_name(%__MODULE__{} = client, name, optional_args \\ []) do
-    query_builder =
-      client.query_builder
-      |> QB.select("loadSecretFromName")
-      |> QB.put_arg("name", name)
-      |> QB.maybe_put_arg("accessor", optional_args[:accessor])
 
     %Dagger.Secret{
       query_builder: query_builder,

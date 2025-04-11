@@ -158,7 +158,7 @@
                 <div class="col-md-8">
                     <a href="#method_asTarball">asTarball</a>(array|null $platformVariants = null, <abbr title="Dagger\Dagger\ImageLayerCompression">ImageLayerCompression</abbr>|null $forcedCompression = null, <abbr title="Dagger\Dagger\ImageMediaTypes">ImageMediaTypes</abbr>|null $mediaTypes = null)
         
-                                            <p><p>Returns a File representing the container serialized to a tarball.</p></p>                </div>
+                                            <p><p>Package the container state as an OCI image, and return it as a tar archive</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -166,7 +166,7 @@
                     <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
                 </div>
                 <div class="col-md-8">
-                    <a href="#method_build">build</a>(<abbr title="Dagger\DirectoryId|Dagger\Directory">Directory</abbr> $context, string|null $dockerfile = &#039;Dockerfile&#039;, string|null $target = &#039;&#039;, array|null $buildArgs = null, array|null $secrets = null)
+                    <a href="#method_build">build</a>(<abbr title="Dagger\DirectoryId|Dagger\Directory">Directory</abbr> $context, string|null $dockerfile = &#039;Dockerfile&#039;, string|null $target = &#039;&#039;, array|null $buildArgs = null, array|null $secrets = null, bool|null $noInit = false)
         
                                             <p><p>Initializes this container from a Dockerfile build.</p></p>                </div>
                 <div class="col-md-2"></div>
@@ -178,7 +178,7 @@
                 <div class="col-md-8">
                     <a href="#method_defaultArgs">defaultArgs</a>()
         
-                                            <p><p>Retrieves default arguments for future commands.</p></p>                </div>
+                                            <p><p>Return the container's default arguments.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -188,7 +188,7 @@
                 <div class="col-md-8">
                     <a href="#method_directory">directory</a>(string $path, bool|null $expand = false)
         
-                                            <p><p>Retrieves a directory at the given path.</p></p>                </div>
+                                            <p><p>Retrieve a directory from the container's root filesystem</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -198,7 +198,7 @@
                 <div class="col-md-8">
                     <a href="#method_entrypoint">entrypoint</a>()
         
-                                            <p><p>Retrieves entrypoint to be prepended to the arguments of all commands.</p></p>                </div>
+                                            <p><p>Return the container's OCI entrypoint.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -228,7 +228,7 @@
                 <div class="col-md-8">
                     <a href="#method_exitCode">exitCode</a>()
         
-                                            <p><p>The exit code of the last executed command.</p></p>                </div>
+                                            <p><p>The exit code of the last executed command</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -288,7 +288,7 @@
                 <div class="col-md-8">
                     <a href="#method_from">from</a>(string $address)
         
-                                            <p><p>Initializes this container from a pulled base image.</p></p>                </div>
+                                            <p><p>Download a container image, and apply it to the container state. All previous state will be lost.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -368,7 +368,7 @@
                 <div class="col-md-8">
                     <a href="#method_publish">publish</a>(string $address, array|null $platformVariants = null, <abbr title="Dagger\Dagger\ImageLayerCompression">ImageLayerCompression</abbr>|null $forcedCompression = null, <abbr title="Dagger\Dagger\ImageMediaTypes">ImageMediaTypes</abbr>|null $mediaTypes = null)
         
-                                            <p><p>Publishes this container as a new image to the specified address.</p></p>                </div>
+                                            <p><p>Package the container state as an OCI image, and publish it to a registry</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -378,7 +378,7 @@
                 <div class="col-md-8">
                     <a href="#method_rootfs">rootfs</a>()
         
-                                            <p><p>Retrieves this container's root filesystem. Mounts are not included.</p></p>                </div>
+                                            <p><p>Return a snapshot of the container's root filesystem. The snapshot can be modified then written back using withRootfs. Use that method for filesystem modifications.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -388,7 +388,7 @@
                 <div class="col-md-8">
                     <a href="#method_stderr">stderr</a>()
         
-                                            <p><p>The error stream of the last executed command.</p></p>                </div>
+                                            <p><p>The buffered standard error stream of the last executed command</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -398,7 +398,7 @@
                 <div class="col-md-8">
                     <a href="#method_stdout">stdout</a>()
         
-                                            <p><p>The output stream of the last executed command.</p></p>                </div>
+                                            <p><p>The buffered standard output stream of the last executed command</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -458,7 +458,7 @@
                 <div class="col-md-8">
                     <a href="#method_withDefaultArgs">withDefaultArgs</a>(array $args)
         
-                                            <p><p>Configures default arguments for future commands.</p></p>                </div>
+                                            <p><p>Configures default arguments for future commands. Like CMD in Dockerfile.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -478,7 +478,7 @@
                 <div class="col-md-8">
                     <a href="#method_withDirectory">withDirectory</a>(string $path, <abbr title="Dagger\DirectoryId|Dagger\Directory">Directory</abbr> $directory, array|null $exclude = null, array|null $include = null, string|null $owner = &#039;&#039;, bool|null $expand = false)
         
-                                            <p><p>Retrieves this container plus a directory written at the given path.</p></p>                </div>
+                                            <p><p>Return a new container snapshot, with a directory added to its filesystem</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -488,7 +488,7 @@
                 <div class="col-md-8">
                     <a href="#method_withEntrypoint">withEntrypoint</a>(array $args, bool|null $keepDefaultArgs = false)
         
-                                            <p><p>Retrieves this container but with a different command entrypoint.</p></p>                </div>
+                                            <p><p>Set an OCI-style entrypoint. It will be included in the container's OCI configuration. Note, withExec ignores the entrypoint by default.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -498,7 +498,7 @@
                 <div class="col-md-8">
                     <a href="#method_withEnvVariable">withEnvVariable</a>(string $name, string $value, bool|null $expand = false)
         
-                                            <p><p>Retrieves this container plus the given environment variable.</p></p>                </div>
+                                            <p><p>Set a new environment variable in the container.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -508,7 +508,7 @@
                 <div class="col-md-8">
                     <a href="#method_withExec">withExec</a>(array $args, bool|null $useEntrypoint = false, string|null $stdin = &#039;&#039;, string|null $redirectStdout = &#039;&#039;, string|null $redirectStderr = &#039;&#039;, <abbr title="Dagger\Dagger\ReturnType">ReturnType</abbr>|null $expect = null, bool|null $experimentalPrivilegedNesting = false, bool|null $insecureRootCapabilities = false, bool|null $expand = false, bool|null $noInit = false)
         
-                                            <p><p>Retrieves this container after executing the specified command inside it.</p></p>                </div>
+                                            <p><p>Execute a command in the container, and return a new snapshot of the container state after execution.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -518,7 +518,7 @@
                 <div class="col-md-8">
                     <a href="#method_withExposedPort">withExposedPort</a>(int $port, <abbr title="Dagger\Dagger\NetworkProtocol">NetworkProtocol</abbr>|null $protocol = null, string|null $description = null, bool|null $experimentalSkipHealthcheck = false)
         
-                                            <p><p>Expose a network port.</p></p>                </div>
+                                            <p><p>Expose a network port. Like EXPOSE in Dockerfile (but with healthcheck support)</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -528,7 +528,7 @@
                 <div class="col-md-8">
                     <a href="#method_withFile">withFile</a>(string $path, <abbr title="Dagger\FileId|Dagger\File">File</abbr> $source, int|null $permissions = null, string|null $owner = &#039;&#039;, bool|null $expand = false)
         
-                                            <p><p>Retrieves this container plus the contents of the given file copied to the given path.</p></p>                </div>
+                                            <p><p>Return a container snapshot with a file added</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -608,7 +608,7 @@
                 <div class="col-md-8">
                     <a href="#method_withNewFile">withNewFile</a>(string $path, string $contents, int|null $permissions = 420, string|null $owner = &#039;&#039;, bool|null $expand = false)
         
-                                            <p><p>Retrieves this container plus a new file written at the given path.</p></p>                </div>
+                                            <p><p>Return a new container snapshot, with a file added to its filesystem</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -618,7 +618,7 @@
                 <div class="col-md-8">
                     <a href="#method_withRegistryAuth">withRegistryAuth</a>(string $address, string $username, <abbr title="Dagger\SecretId|Dagger\Secret">Secret</abbr> $secret)
         
-                                            <p><p>Retrieves this container with a registry authentication for a given address.</p></p>                </div>
+                                            <p><p>Attach credentials for future publishing to a registry. Use in combination with publish</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -628,7 +628,7 @@
                 <div class="col-md-8">
                     <a href="#method_withRootfs">withRootfs</a>(<abbr title="Dagger\DirectoryId|Dagger\Directory">Directory</abbr> $directory)
         
-                                            <p><p>Retrieves the container with the given directory mounted to /.</p></p>                </div>
+                                            <p><p>Change the container's root filesystem. The previous root filesystem will be lost.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -638,7 +638,7 @@
                 <div class="col-md-8">
                     <a href="#method_withSecretVariable">withSecretVariable</a>(string $name, <abbr title="Dagger\SecretId|Dagger\Secret">Secret</abbr> $secret)
         
-                                            <p><p>Retrieves this container plus an env variable containing the given secret.</p></p>                </div>
+                                            <p><p>Set a new environment variable, using a secret value</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -648,7 +648,7 @@
                 <div class="col-md-8">
                     <a href="#method_withServiceBinding">withServiceBinding</a>(string $alias, <abbr title="Dagger\ServiceId|Dagger\Service">Service</abbr> $service)
         
-                                            <p><p>Establish a runtime dependency on a service.</p></p>                </div>
+                                            <p><p>Establish a runtime dependency on a from a container to a network service.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -678,7 +678,7 @@
                 <div class="col-md-8">
                     <a href="#method_withWorkdir">withWorkdir</a>(string $path, bool|null $expand = false)
         
-                                            <p><p>Retrieves this container with a different working directory.</p></p>                </div>
+                                            <p><p>Change the container's working directory. Like WORKDIR in Dockerfile.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -698,7 +698,7 @@
                 <div class="col-md-8">
                     <a href="#method_withoutDefaultArgs">withoutDefaultArgs</a>()
         
-                                            <p><p>Retrieves this container with unset default arguments for future commands.</p></p>                </div>
+                                            <p><p>Remove the container's default arguments.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -708,7 +708,7 @@
                 <div class="col-md-8">
                     <a href="#method_withoutDirectory">withoutDirectory</a>(string $path, bool|null $expand = false)
         
-                                            <p><p>Retrieves this container with the directory at the given path removed.</p></p>                </div>
+                                            <p><p>Return a new container snapshot, with a directory removed from its filesystem</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -718,7 +718,7 @@
                 <div class="col-md-8">
                     <a href="#method_withoutEntrypoint">withoutEntrypoint</a>(bool|null $keepDefaultArgs = false)
         
-                                            <p><p>Retrieves this container with an unset command entrypoint.</p></p>                </div>
+                                            <p><p>Reset the container's OCI entrypoint.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -758,7 +758,7 @@
                 <div class="col-md-8">
                     <a href="#method_withoutFiles">withoutFiles</a>(array $paths, bool|null $expand = false)
         
-                                            <p><p>Retrieves this container with the files at the given paths removed.</p></p>                </div>
+                                            <p><p>Return a new container spanshot with specified files removed</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -828,7 +828,7 @@
                 <div class="col-md-8">
                     <a href="#method_withoutWorkdir">withoutWorkdir</a>()
         
-                                            <p><p>Retrieves this container with an unset working directory.</p></p>                </div>
+                                            <p><p>Unset the container's working directory.</p></p>                </div>
                 <div class="col-md-2"></div>
             </div>
                     <div class="row">
@@ -1015,7 +1015,7 @@
             
 
         <div class="method-description">
-                            <p><p>Returns a File representing the container serialized to a tarball.</p></p>                        
+                            <p><p>Package the container state as an OCI image, and return it as a tar archive</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -1059,7 +1059,7 @@
                     <h3 id="method_build">
         <div class="location">at line 75</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
-    <strong>build</strong>(<abbr title="Dagger\DirectoryId|Dagger\Directory">Directory</abbr> $context, string|null $dockerfile = &#039;Dockerfile&#039;, string|null $target = &#039;&#039;, array|null $buildArgs = null, array|null $secrets = null)
+    <strong>build</strong>(<abbr title="Dagger\DirectoryId|Dagger\Directory">Directory</abbr> $context, string|null $dockerfile = &#039;Dockerfile&#039;, string|null $target = &#039;&#039;, array|null $buildArgs = null, array|null $secrets = null, bool|null $noInit = false)
         </code>
     </h3>
     <div class="details">    
@@ -1098,6 +1098,11 @@
                 <td>$secrets</td>
                 <td></td>
             </tr>
+                    <tr>
+                <td>bool|null</td>
+                <td>$noInit</td>
+                <td></td>
+            </tr>
             </table>
 
             
@@ -1119,7 +1124,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_defaultArgs">
-        <div class="location">at line 102</div>
+        <div class="location">at line 106</div>
         <code>                    array
     <strong>defaultArgs</strong>()
         </code>
@@ -1129,7 +1134,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves default arguments for future commands.</p></p>                        
+                            <p><p>Return the container's default arguments.</p></p>                        
         </div>
         <div class="tags">
             
@@ -1151,7 +1156,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_directory">
-        <div class="location">at line 113</div>
+        <div class="location">at line 117</div>
         <code>                    <a href="../Dagger/Directory.html"><abbr title="Dagger\Directory">Directory</abbr></a>
     <strong>directory</strong>(string $path, bool|null $expand = false)
         </code>
@@ -1161,7 +1166,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves a directory at the given path.</p></p>                <p><p>Mounts are included.</p></p>        
+                            <p><p>Retrieve a directory from the container's root filesystem</p></p>                <p><p>Mounts are included.</p></p>        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -1198,7 +1203,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_entrypoint">
-        <div class="location">at line 126</div>
+        <div class="location">at line 130</div>
         <code>                    array
     <strong>entrypoint</strong>()
         </code>
@@ -1208,7 +1213,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves entrypoint to be prepended to the arguments of all commands.</p></p>                        
+                            <p><p>Return the container's OCI entrypoint.</p></p>                        
         </div>
         <div class="tags">
             
@@ -1230,7 +1235,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_envVariable">
-        <div class="location">at line 135</div>
+        <div class="location">at line 139</div>
         <code>                    string
     <strong>envVariable</strong>(string $name)
         </code>
@@ -1272,7 +1277,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_envVariables">
-        <div class="location">at line 145</div>
+        <div class="location">at line 149</div>
         <code>                    array
     <strong>envVariables</strong>()
         </code>
@@ -1304,7 +1309,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_exitCode">
-        <div class="location">at line 156</div>
+        <div class="location">at line 160</div>
         <code>                    int
     <strong>exitCode</strong>()
         </code>
@@ -1314,7 +1319,7 @@
             
 
         <div class="method-description">
-                            <p><p>The exit code of the last executed command.</p></p>                <p><p>Returns an error if no command was set.</p></p>        
+                            <p><p>The exit code of the last executed command</p></p>                <p><p>Returns an error if no command was executed</p></p>        
         </div>
         <div class="tags">
             
@@ -1336,7 +1341,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_experimentalWithAllGPUs">
-        <div class="location">at line 169</div>
+        <div class="location">at line 173</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>experimentalWithAllGPUs</strong>()
         </code>
@@ -1369,7 +1374,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_experimentalWithGPU">
-        <div class="location">at line 182</div>
+        <div class="location">at line 186</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>experimentalWithGPU</strong>(array $devices)
         </code>
@@ -1412,7 +1417,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_export">
-        <div class="location">at line 194</div>
+        <div class="location">at line 198</div>
         <code>                    string
     <strong>export</strong>(string $path, array|null $platformVariants = null, <abbr title="Dagger\Dagger\ImageLayerCompression">ImageLayerCompression</abbr>|null $forcedCompression = null, <abbr title="Dagger\Dagger\ImageMediaTypes">ImageMediaTypes</abbr>|null $mediaTypes = null, bool|null $expand = false)
         </code>
@@ -1474,7 +1479,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_exposedPorts">
-        <div class="location">at line 223</div>
+        <div class="location">at line 227</div>
         <code>                    array
     <strong>exposedPorts</strong>()
         </code>
@@ -1506,7 +1511,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_file">
-        <div class="location">at line 234</div>
+        <div class="location">at line 238</div>
         <code>                    <a href="../Dagger/File.html"><abbr title="Dagger\File">File</abbr></a>
     <strong>file</strong>(string $path, bool|null $expand = false)
         </code>
@@ -1553,7 +1558,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_from">
-        <div class="location">at line 247</div>
+        <div class="location">at line 251</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>from</strong>(string $address)
         </code>
@@ -1563,7 +1568,7 @@
             
 
         <div class="method-description">
-                            <p><p>Initializes this container from a pulled base image.</p></p>                        
+                            <p><p>Download a container image, and apply it to the container state. All previous state will be lost.</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -1595,7 +1600,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_id">
-        <div class="location">at line 257</div>
+        <div class="location">at line 261</div>
         <code>                    <a href="../Dagger/Client/AbstractId.html"><abbr title="Dagger\Client\AbstractId">AbstractId</abbr></a>
     <strong>id</strong>()
         </code>
@@ -1627,7 +1632,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_imageRef">
-        <div class="location">at line 266</div>
+        <div class="location">at line 270</div>
         <code>                    string
     <strong>imageRef</strong>()
         </code>
@@ -1659,7 +1664,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_import">
-        <div class="location">at line 275</div>
+        <div class="location">at line 279</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>import</strong>(<abbr title="Dagger\FileId|Dagger\File">File</abbr> $source, string|null $tag = &#039;&#039;)
         </code>
@@ -1706,7 +1711,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_label">
-        <div class="location">at line 288</div>
+        <div class="location">at line 292</div>
         <code>                    string
     <strong>label</strong>(string $name)
         </code>
@@ -1748,7 +1753,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_labels">
-        <div class="location">at line 298</div>
+        <div class="location">at line 302</div>
         <code>                    array
     <strong>labels</strong>()
         </code>
@@ -1780,7 +1785,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_mounts">
-        <div class="location">at line 307</div>
+        <div class="location">at line 311</div>
         <code>                    array
     <strong>mounts</strong>()
         </code>
@@ -1812,7 +1817,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_platform">
-        <div class="location">at line 316</div>
+        <div class="location">at line 320</div>
         <code>                    <a href="../Dagger/Platform.html"><abbr title="Dagger\Platform">Platform</abbr></a>
     <strong>platform</strong>()
         </code>
@@ -1844,7 +1849,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_publish">
-        <div class="location">at line 329</div>
+        <div class="location">at line 331</div>
         <code>                    string
     <strong>publish</strong>(string $address, array|null $platformVariants = null, <abbr title="Dagger\Dagger\ImageLayerCompression">ImageLayerCompression</abbr>|null $forcedCompression = null, <abbr title="Dagger\Dagger\ImageMediaTypes">ImageMediaTypes</abbr>|null $mediaTypes = null)
         </code>
@@ -1854,8 +1859,7 @@
             
 
         <div class="method-description">
-                            <p><p>Publishes this container as a new image to the specified address.</p></p>                <p><p>Publish returns a fully qualified ref.</p>
-<p>It can also publish platform variants.</p></p>        
+                            <p><p>Package the container state as an OCI image, and publish it to a registry</p></p>                <p><p>Returns the fully qualified address of the published image, with digest</p></p>        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -1902,7 +1906,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_rootfs">
-        <div class="location">at line 352</div>
+        <div class="location">at line 354</div>
         <code>                    <a href="../Dagger/Directory.html"><abbr title="Dagger\Directory">Directory</abbr></a>
     <strong>rootfs</strong>()
         </code>
@@ -1912,7 +1916,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container's root filesystem. Mounts are not included.</p></p>                        
+                            <p><p>Return a snapshot of the container's root filesystem. The snapshot can be modified then written back using withRootfs. Use that method for filesystem modifications.</p></p>                        
         </div>
         <div class="tags">
             
@@ -1934,7 +1938,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_stderr">
-        <div class="location">at line 363</div>
+        <div class="location">at line 365</div>
         <code>                    string
     <strong>stderr</strong>()
         </code>
@@ -1944,7 +1948,7 @@
             
 
         <div class="method-description">
-                            <p><p>The error stream of the last executed command.</p></p>                <p><p>Returns an error if no command was set.</p></p>        
+                            <p><p>The buffered standard error stream of the last executed command</p></p>                <p><p>Returns an error if no command was executed</p></p>        
         </div>
         <div class="tags">
             
@@ -1966,7 +1970,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_stdout">
-        <div class="location">at line 374</div>
+        <div class="location">at line 376</div>
         <code>                    string
     <strong>stdout</strong>()
         </code>
@@ -1976,7 +1980,7 @@
             
 
         <div class="method-description">
-                            <p><p>The output stream of the last executed command.</p></p>                <p><p>Returns an error if no command was set.</p></p>        
+                            <p><p>The buffered standard output stream of the last executed command</p></p>                <p><p>Returns an error if no command was executed</p></p>        
         </div>
         <div class="tags">
             
@@ -1998,7 +2002,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_sync">
-        <div class="location">at line 385</div>
+        <div class="location">at line 387</div>
         <code>                    <a href="../Dagger/ContainerId.html"><abbr title="Dagger\ContainerId">ContainerId</abbr></a>
     <strong>sync</strong>()
         </code>
@@ -2030,7 +2034,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_terminal">
-        <div class="location">at line 394</div>
+        <div class="location">at line 396</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>terminal</strong>(array|null $cmd = null, bool|null $experimentalPrivilegedNesting = false, bool|null $insecureRootCapabilities = false)
         </code>
@@ -2082,7 +2086,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_up">
-        <div class="location">at line 417</div>
+        <div class="location">at line 419</div>
         <code>                    void
     <strong>up</strong>(array|null $ports = null, bool|null $random = false, array|null $args = null, bool|null $useEntrypoint = false, bool|null $experimentalPrivilegedNesting = false, bool|null $insecureRootCapabilities = false, bool|null $expand = false, bool|null $noInit = false)
         </code>
@@ -2159,7 +2163,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_user">
-        <div class="location">at line 458</div>
+        <div class="location">at line 460</div>
         <code>                    string
     <strong>user</strong>()
         </code>
@@ -2191,7 +2195,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withAnnotation">
-        <div class="location">at line 467</div>
+        <div class="location">at line 469</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withAnnotation</strong>(string $name, string $value)
         </code>
@@ -2238,7 +2242,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withDefaultArgs">
-        <div class="location">at line 478</div>
+        <div class="location">at line 480</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withDefaultArgs</strong>(array $args)
         </code>
@@ -2248,7 +2252,7 @@
             
 
         <div class="method-description">
-                            <p><p>Configures default arguments for future commands.</p></p>                        
+                            <p><p>Configures default arguments for future commands. Like CMD in Dockerfile.</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -2280,7 +2284,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withDefaultTerminalCmd">
-        <div class="location">at line 488</div>
+        <div class="location">at line 490</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withDefaultTerminalCmd</strong>(array $args, bool|null $experimentalPrivilegedNesting = false, bool|null $insecureRootCapabilities = false)
         </code>
@@ -2332,7 +2336,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withDirectory">
-        <div class="location">at line 507</div>
+        <div class="location">at line 509</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withDirectory</strong>(string $path, <abbr title="Dagger\DirectoryId|Dagger\Directory">Directory</abbr> $directory, array|null $exclude = null, array|null $include = null, string|null $owner = &#039;&#039;, bool|null $expand = false)
         </code>
@@ -2342,7 +2346,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container plus a directory written at the given path.</p></p>                        
+                            <p><p>Return a new container snapshot, with a directory added to its filesystem</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -2399,7 +2403,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withEntrypoint">
-        <div class="location">at line 536</div>
+        <div class="location">at line 538</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withEntrypoint</strong>(array $args, bool|null $keepDefaultArgs = false)
         </code>
@@ -2409,7 +2413,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container but with a different command entrypoint.</p></p>                        
+                            <p><p>Set an OCI-style entrypoint. It will be included in the container's OCI configuration. Note, withExec ignores the entrypoint by default.</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -2446,7 +2450,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withEnvVariable">
-        <div class="location">at line 549</div>
+        <div class="location">at line 551</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withEnvVariable</strong>(string $name, string $value, bool|null $expand = false)
         </code>
@@ -2456,7 +2460,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container plus the given environment variable.</p></p>                        
+                            <p><p>Set a new environment variable in the container.</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -2498,7 +2502,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withExec">
-        <div class="location">at line 563</div>
+        <div class="location">at line 565</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withExec</strong>(array $args, bool|null $useEntrypoint = false, string|null $stdin = &#039;&#039;, string|null $redirectStdout = &#039;&#039;, string|null $redirectStderr = &#039;&#039;, <abbr title="Dagger\Dagger\ReturnType">ReturnType</abbr>|null $expect = null, bool|null $experimentalPrivilegedNesting = false, bool|null $insecureRootCapabilities = false, bool|null $expand = false, bool|null $noInit = false)
         </code>
@@ -2508,7 +2512,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container after executing the specified command inside it.</p></p>                        
+                            <p><p>Execute a command in the container, and return a new snapshot of the container state after execution.</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -2585,7 +2589,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withExposedPort">
-        <div class="location">at line 616</div>
+        <div class="location">at line 618</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withExposedPort</strong>(int $port, <abbr title="Dagger\Dagger\NetworkProtocol">NetworkProtocol</abbr>|null $protocol = null, string|null $description = null, bool|null $experimentalSkipHealthcheck = false)
         </code>
@@ -2595,7 +2599,7 @@
             
 
         <div class="method-description">
-                            <p><p>Expose a network port.</p></p>                <p><p>Exposed ports serve two purposes:</p>
+                            <p><p>Expose a network port. Like EXPOSE in Dockerfile (but with healthcheck support)</p></p>                <p><p>Exposed ports serve two purposes:</p>
 <ul>
 <li>
 <p>For health checks and introspection, when running services</p>
@@ -2650,7 +2654,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withFile">
-        <div class="location">at line 639</div>
+        <div class="location">at line 641</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withFile</strong>(string $path, <abbr title="Dagger\FileId|Dagger\File">File</abbr> $source, int|null $permissions = null, string|null $owner = &#039;&#039;, bool|null $expand = false)
         </code>
@@ -2660,7 +2664,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container plus the contents of the given file copied to the given path.</p></p>                        
+                            <p><p>Return a container snapshot with a file added</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -2712,7 +2716,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withFiles">
-        <div class="location">at line 664</div>
+        <div class="location">at line 666</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withFiles</strong>(string $path, array $sources, int|null $permissions = null, string|null $owner = &#039;&#039;, bool|null $expand = false)
         </code>
@@ -2774,7 +2778,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withLabel">
-        <div class="location">at line 689</div>
+        <div class="location">at line 691</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withLabel</strong>(string $name, string $value)
         </code>
@@ -2821,7 +2825,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withMountedCache">
-        <div class="location">at line 700</div>
+        <div class="location">at line 702</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withMountedCache</strong>(string $path, <abbr title="Dagger\CacheVolumeId|Dagger\CacheVolume">CacheVolume</abbr> $cache, <abbr title="Dagger\Dagger\DirectoryId|Dagger\Directory|null">Directory|null</abbr> $source = null, <abbr title="Dagger\Dagger\CacheSharingMode">CacheSharingMode</abbr>|null $sharing = null, string|null $owner = &#039;&#039;, bool|null $expand = false)
         </code>
@@ -2888,7 +2892,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withMountedDirectory">
-        <div class="location">at line 729</div>
+        <div class="location">at line 731</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withMountedDirectory</strong>(string $path, <abbr title="Dagger\DirectoryId|Dagger\Directory">Directory</abbr> $source, string|null $owner = &#039;&#039;, bool|null $expand = false)
         </code>
@@ -2945,7 +2949,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withMountedFile">
-        <div class="location">at line 750</div>
+        <div class="location">at line 752</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withMountedFile</strong>(string $path, <abbr title="Dagger\FileId|Dagger\File">File</abbr> $source, string|null $owner = &#039;&#039;, bool|null $expand = false)
         </code>
@@ -3002,7 +3006,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withMountedSecret">
-        <div class="location">at line 771</div>
+        <div class="location">at line 773</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withMountedSecret</strong>(string $path, <abbr title="Dagger\SecretId|Dagger\Secret">Secret</abbr> $source, string|null $owner = &#039;&#039;, int|null $mode = 256, bool|null $expand = false)
         </code>
@@ -3064,7 +3068,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withMountedTemp">
-        <div class="location">at line 796</div>
+        <div class="location">at line 798</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withMountedTemp</strong>(string $path, int|null $size = null, bool|null $expand = false)
         </code>
@@ -3116,7 +3120,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withNewFile">
-        <div class="location">at line 812</div>
+        <div class="location">at line 814</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withNewFile</strong>(string $path, string $contents, int|null $permissions = 420, string|null $owner = &#039;&#039;, bool|null $expand = false)
         </code>
@@ -3126,7 +3130,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container plus a new file written at the given path.</p></p>                        
+                            <p><p>Return a new container snapshot, with a file added to its filesystem</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -3178,7 +3182,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withRegistryAuth">
-        <div class="location">at line 837</div>
+        <div class="location">at line 839</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withRegistryAuth</strong>(string $address, string $username, <abbr title="Dagger\SecretId|Dagger\Secret">Secret</abbr> $secret)
         </code>
@@ -3188,7 +3192,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container with a registry authentication for a given address.</p></p>                        
+                            <p><p>Attach credentials for future publishing to a registry. Use in combination with publish</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -3230,7 +3234,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withRootfs">
-        <div class="location">at line 849</div>
+        <div class="location">at line 851</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withRootfs</strong>(<abbr title="Dagger\DirectoryId|Dagger\Directory">Directory</abbr> $directory)
         </code>
@@ -3240,7 +3244,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves the container with the given directory mounted to /.</p></p>                        
+                            <p><p>Change the container's root filesystem. The previous root filesystem will be lost.</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -3272,7 +3276,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withSecretVariable">
-        <div class="location">at line 859</div>
+        <div class="location">at line 861</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withSecretVariable</strong>(string $name, <abbr title="Dagger\SecretId|Dagger\Secret">Secret</abbr> $secret)
         </code>
@@ -3282,7 +3286,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container plus an env variable containing the given secret.</p></p>                        
+                            <p><p>Set a new environment variable, using a secret value</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -3319,7 +3323,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withServiceBinding">
-        <div class="location">at line 876</div>
+        <div class="location">at line 878</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withServiceBinding</strong>(string $alias, <abbr title="Dagger\ServiceId|Dagger\Service">Service</abbr> $service)
         </code>
@@ -3329,7 +3333,7 @@
             
 
         <div class="method-description">
-                            <p><p>Establish a runtime dependency on a service.</p></p>                <p><p>The service will be started automatically when needed and detached when it is no longer needed, executing the default command if none is set.</p>
+                            <p><p>Establish a runtime dependency on a from a container to a network service.</p></p>                <p><p>The service will be started automatically when needed and detached when it is no longer needed, executing the default command if none is set.</p>
 <p>The service will be reachable from the container via the provided hostname alias.</p>
 <p>The service dependency will also convey to any files or directories produced by the container.</p></p>        
         </div>
@@ -3368,7 +3372,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withUnixSocket">
-        <div class="location">at line 887</div>
+        <div class="location">at line 889</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withUnixSocket</strong>(string $path, <abbr title="Dagger\SocketId|Dagger\Socket">Socket</abbr> $source, string|null $owner = &#039;&#039;, bool|null $expand = false)
         </code>
@@ -3425,7 +3429,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withUser">
-        <div class="location">at line 908</div>
+        <div class="location">at line 910</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withUser</strong>(string $name)
         </code>
@@ -3467,7 +3471,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withWorkdir">
-        <div class="location">at line 918</div>
+        <div class="location">at line 920</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withWorkdir</strong>(string $path, bool|null $expand = false)
         </code>
@@ -3477,7 +3481,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container with a different working directory.</p></p>                        
+                            <p><p>Change the container's working directory. Like WORKDIR in Dockerfile.</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -3514,7 +3518,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutAnnotation">
-        <div class="location">at line 931</div>
+        <div class="location">at line 933</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutAnnotation</strong>(string $name)
         </code>
@@ -3556,7 +3560,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutDefaultArgs">
-        <div class="location">at line 941</div>
+        <div class="location">at line 943</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutDefaultArgs</strong>()
         </code>
@@ -3566,7 +3570,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container with unset default arguments for future commands.</p></p>                        
+                            <p><p>Remove the container's default arguments.</p></p>                        
         </div>
         <div class="tags">
             
@@ -3588,7 +3592,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutDirectory">
-        <div class="location">at line 950</div>
+        <div class="location">at line 952</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutDirectory</strong>(string $path, bool|null $expand = false)
         </code>
@@ -3598,7 +3602,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container with the directory at the given path removed.</p></p>                        
+                            <p><p>Return a new container snapshot, with a directory removed from its filesystem</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -3635,7 +3639,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutEntrypoint">
-        <div class="location">at line 963</div>
+        <div class="location">at line 965</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutEntrypoint</strong>(bool|null $keepDefaultArgs = false)
         </code>
@@ -3645,7 +3649,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container with an unset command entrypoint.</p></p>                        
+                            <p><p>Reset the container's OCI entrypoint.</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -3677,7 +3681,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutEnvVariable">
-        <div class="location">at line 975</div>
+        <div class="location">at line 977</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutEnvVariable</strong>(string $name)
         </code>
@@ -3719,7 +3723,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutExposedPort">
-        <div class="location">at line 985</div>
+        <div class="location">at line 987</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutExposedPort</strong>(int $port, <abbr title="Dagger\Dagger\NetworkProtocol">NetworkProtocol</abbr>|null $protocol = null)
         </code>
@@ -3766,7 +3770,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutFile">
-        <div class="location">at line 998</div>
+        <div class="location">at line 1000</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutFile</strong>(string $path, bool|null $expand = false)
         </code>
@@ -3813,7 +3817,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutFiles">
-        <div class="location">at line 1011</div>
+        <div class="location">at line 1013</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutFiles</strong>(array $paths, bool|null $expand = false)
         </code>
@@ -3823,7 +3827,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container with the files at the given paths removed.</p></p>                        
+                            <p><p>Return a new container spanshot with specified files removed</p></p>                        
         </div>
         <div class="tags">
                             <h4>Parameters</h4>
@@ -3860,7 +3864,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutLabel">
-        <div class="location">at line 1024</div>
+        <div class="location">at line 1026</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutLabel</strong>(string $name)
         </code>
@@ -3902,7 +3906,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutMount">
-        <div class="location">at line 1034</div>
+        <div class="location">at line 1036</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutMount</strong>(string $path, bool|null $expand = false)
         </code>
@@ -3949,7 +3953,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutRegistryAuth">
-        <div class="location">at line 1047</div>
+        <div class="location">at line 1049</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutRegistryAuth</strong>(string $address)
         </code>
@@ -3991,7 +3995,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutSecretVariable">
-        <div class="location">at line 1057</div>
+        <div class="location">at line 1059</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutSecretVariable</strong>(string $name)
         </code>
@@ -4033,7 +4037,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutUnixSocket">
-        <div class="location">at line 1067</div>
+        <div class="location">at line 1069</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutUnixSocket</strong>(string $path, bool|null $expand = false)
         </code>
@@ -4080,7 +4084,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutUser">
-        <div class="location">at line 1082</div>
+        <div class="location">at line 1084</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutUser</strong>()
         </code>
@@ -4112,7 +4116,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_withoutWorkdir">
-        <div class="location">at line 1093</div>
+        <div class="location">at line 1095</div>
         <code>                    <a href="../Dagger/Container.html"><abbr title="Dagger\Container">Container</abbr></a>
     <strong>withoutWorkdir</strong>()
         </code>
@@ -4122,7 +4126,7 @@
             
 
         <div class="method-description">
-                            <p><p>Retrieves this container with an unset working directory.</p></p>                <p><p>Should default to &quot;/&quot;.</p></p>        
+                            <p><p>Unset the container's working directory.</p></p>                <p><p>Should default to &quot;/&quot;.</p></p>        
         </div>
         <div class="tags">
             
@@ -4144,7 +4148,7 @@
             </div>
                     <div class="method-item">
                     <h3 id="method_workdir">
-        <div class="location">at line 1102</div>
+        <div class="location">at line 1104</div>
         <code>                    string
     <strong>workdir</strong>()
         </code>

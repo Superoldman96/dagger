@@ -46,14 +46,22 @@ type MCP struct {
 	needsSystemPrompt bool
 	// Only show these functions, if non-empty
 	functionMask map[string]bool
+	// Indicates that the model has returned
+	returned bool
 }
 
-func NewMCP(endpoint *LLMEndpoint) *MCP {
-	return &MCP{
-		env:               NewEnv(),
-		functionMask:      map[string]bool{},
-		needsSystemPrompt: endpoint.Provider == Google,
+func newMCP(env *Env, endpoint *LLMEndpoint) *MCP {
+	m := &MCP{
+		env:          env,
+		functionMask: map[string]bool{},
 	}
+	if env.Root() != nil {
+		m.Select(env.Root())
+	}
+	if endpoint != nil {
+		m.needsSystemPrompt = (endpoint.Provider == Google)
+	}
+	return m
 }
 
 //go:embed llm_dagger_prompt.md
@@ -186,6 +194,108 @@ func (m *MCP) tools(srv *dagql.Server, typeName string) ([]LLMTool, error) {
 			// never a reason to call "sync" since we call it automatically
 			continue
 		}
+		// Hide functions from the largest and most commonly used core types,
+		// to prevent tool bloat
+		switch typeName {
+		case "Query":
+			switch field.Name {
+			case
+				"currentModule",
+				"currentTypeDefs",
+				"defaultPlatform",
+				"engine",
+				"env",
+				"error",
+				"function",
+				"generatedCode",
+				"llm",
+				"loadSecretFromName",
+				"module",
+				"moduleSource",
+				"secret",
+				"setSecret",
+				"sourceMap",
+				"typeDef",
+				"version":
+				continue
+			}
+		case "Container":
+			switch field.Name {
+			case
+				"build",
+				"defaultArgs",
+				"entrypoint",
+				"envVariable",
+				"envVariables",
+				"experimentalWithAllGPUs",
+				"experimentalWithGPU",
+				"export",
+				"exposedPorts",
+				"imageRef",
+				"import",
+				"label",
+				"labels",
+				"mounts",
+				"pipeline",
+				"platform",
+				"rootfs",
+				"terminal",
+				"up",
+				"user",
+				"withAnnotation",
+				"withDefaultTerminalCmd",
+				"withFiles",
+				"withFocus",
+				"withMountedCache",
+				"withMountedDirectory",
+				"withMountedFile",
+				"withMountedSecret",
+				"withMountedTemp",
+				"withRootfs",
+				"withoutAnnotation",
+				"withoutDefaultArgs",
+				"withoutEnvVariable",
+				"withoutExposedPort",
+				"withoutFile",
+				"withoutFocus",
+				"withoutMount",
+				"withoutRegistryAuth",
+				"withoutSecretVariable",
+				"withoutUnixSocket",
+				"withoutUser",
+				"withoutWorkdir",
+				"workdir":
+				continue
+			}
+		case "Directory":
+			switch field.Name {
+			case
+				// Nice to have, confusing
+				"asModule",
+				"asModuleSource",
+				// Side effect
+				"export",
+				// Nice to have
+				"name",
+				// Side effect
+				"terminal",
+				// Nice to have, confusing
+				"withFiles",
+				"withTimestamps",
+				"withoutDirectory",
+				"withoutFile",
+				"withoutFiles":
+				continue
+			}
+		case "File":
+			switch field.Name {
+			case
+				"export",
+				"withName",
+				"withTimestamps":
+				continue
+			}
+		}
 		if field.Directives.ForName(trivialFieldDirectiveName) != nil {
 			// skip trivial fields on objects, only expose "real" functions
 			// with implementations
@@ -195,8 +305,14 @@ func (m *MCP) tools(srv *dagql.Server, typeName string) ([]LLMTool, error) {
 		if err != nil {
 			return nil, fmt.Errorf("field %q: %w", field.Name, err)
 		}
+		var toolName string
+		if typeName == "Query" {
+			toolName = field.Name
+		} else {
+			toolName = typeDef.Name + "_" + field.Name
+		}
 		tools = append(tools, LLMTool{
-			Name:        typeDef.Name + "_" + field.Name,
+			Name:        toolName,
 			Returns:     field.Type.String(),
 			Description: field.Description,
 			Schema:      schema,
@@ -543,6 +659,7 @@ Each parameter corresponds to a named result with a specific purpose. Do not cal
 					return nil, fmt.Errorf("undefined output: %q", name)
 				}
 			}
+			m.returned = true
 			return "ok", nil
 		},
 	}
@@ -682,6 +799,10 @@ func (m *MCP) envGetters() []LLMTool {
 		})
 	}
 	return tools
+}
+
+func (m *MCP) IsDone() bool {
+	return len(m.env.outputsByName) == 0 || m.returned
 }
 
 func (m *MCP) toolToID(tool LLMTool, args any) (*call.ID, error) {

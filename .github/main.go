@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	daggerVersion      = "v0.17.2"
+	daggerVersion      = "v0.18.2"
 	upstreamRepository = "dagger/dagger"
 	ubuntuVersion      = "24.04"
 	defaultRunner      = "ubuntu-" + ubuntuVersion
@@ -152,7 +152,7 @@ func (ci *CI) withSDKWorkflows(runner *dagger.Gha, name string, sdks ...string) 
 		w = w.
 			WithJob(runner.Job(sdk+"-dev", command, dagger.GhaJobOpts{
 				DaggerVersion: ".",
-				Runner:        []string{SilverRunner(true)},
+				Runner:        []string{AltSilverRunner()},
 			}))
 	}
 
@@ -182,25 +182,25 @@ func (ci *CI) withTestWorkflows(runner *dagger.Gha, name string) *CI {
 				Runner: []string{AltGoldRunner()},
 			}},
 			{"modules", []string{"TestModule"}, &dagger.GhaJobOpts{
-				Runner: []string{AltGoldRunner()},
+				Runner: []string{GoldRunner(true)},
 			}},
 			{"module-runtimes", []string{"TestGo", "TestPython", "TestTypescript", "TestElixir", "TestPHP", "TestJava"}, &dagger.GhaJobOpts{
-				Runner: []string{AltPlatinumRunner()},
+				Runner: []string{PlatinumRunner(true)},
 			}},
 			{"container", []string{"TestContainer"}, &dagger.GhaJobOpts{
-				Runner: []string{AltGoldRunner()},
+				Runner: []string{GoldRunner(true)},
 			}},
 			{"LLM", []string{"TestLLM"}, &dagger.GhaJobOpts{
-				Runner: []string{AltGoldRunner()},
+				Runner: []string{GoldRunner(true)},
 			}},
 			{"cli-engine", []string{"TestCLI", "TestEngine"}, &dagger.GhaJobOpts{
-				Runner: []string{AltGoldRunner()},
+				Runner: []string{GoldRunner(true)},
 			}},
 			{"client-generator", []string{"TestClientGenerator"}, &dagger.GhaJobOpts{
-				Runner: []string{AltGoldRunner()},
+				Runner: []string{GoldRunner(true)},
 			}},
 			{"everything-else", nil, &dagger.GhaJobOpts{
-				Runner: []string{AltPlatinumRunner()},
+				Runner: []string{PlatinumRunner(true)},
 			}},
 		}))
 
@@ -361,6 +361,11 @@ func PlatinumRunner(
 	dind bool,
 ) string {
 	return Runner(3, daggerVersion, 32, true, dind)
+}
+
+// Alternative Silver runner: Single-tenant with Docker, 8 cpu
+func AltSilverRunner() string {
+	return AltRunner(8)
 }
 
 // Alternative Gold runner: Single-tenant with Docker, 16 cpu

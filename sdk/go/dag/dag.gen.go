@@ -22,8 +22,10 @@ func initClient() *dagger.Client {
 			dagger.WithLogOutput(os.Stdout),
 		}
 
+		ctx := context.Background()
+
 		var err error
-		client, err = dagger.Connect(context.Background(), opts...)
+		client, err = dagger.Connect(ctx, opts...)
 		if err != nil {
 			panic(err)
 		}
@@ -50,9 +52,9 @@ func CacheVolume(key string, opts ...dagger.CacheVolumeOpts) *dagger.CacheVolume
 	return client.CacheVolume(key, opts...)
 }
 
-// Creates a scratch container.
+// Creates a scratch container, with no image or metadata.
 //
-// Optional platform argument initializes new containers to execute and publish as that platform. Platform defaults to that of the builder's host.
+// To pull an image, follow up with the "from" function.
 func Container(opts ...dagger.ContainerOpts) *dagger.Container {
 	client := initClient()
 	return client.Container(opts...)
@@ -97,9 +99,9 @@ func Engine() *dagger.Engine {
 }
 
 // Initialize a new environment
-func Env() *dagger.Env {
+func Env(opts ...dagger.EnvOpts) *dagger.Env {
 	client := initClient()
-	return client.Env()
+	return client.Env(opts...)
 }
 
 // Create a new error.
@@ -376,12 +378,6 @@ func LoadScalarTypeDefFromID(id dagger.ScalarTypeDefID) *dagger.ScalarTypeDef {
 func LoadSecretFromID(id dagger.SecretID) *dagger.Secret {
 	client := initClient()
 	return client.LoadSecretFromID(id)
-}
-
-// Load a Secret from its Name.
-func LoadSecretFromName(name string, opts ...dagger.LoadSecretFromNameOpts) *dagger.Secret {
-	client := initClient()
-	return client.LoadSecretFromName(name, opts...)
 }
 
 // Load a Service from its ID.

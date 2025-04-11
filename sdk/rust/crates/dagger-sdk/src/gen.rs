@@ -1802,6 +1802,10 @@ pub struct ContainerBuildOpts<'a> {
     /// Path to the Dockerfile to use.
     #[builder(setter(into, strip_option), default)]
     pub dockerfile: Option<&'a str>,
+    /// If set, skip the automatic init process injected into containers created by RUN statements.
+    /// This should only be used if the user requires that their exec processes be the pid 1 process in the container. Otherwise it may result in unexpected behavior.
+    #[builder(setter(into, strip_option), default)]
+    pub no_init: Option<bool>,
     /// Secrets to pass to the build.
     /// They will be mounted at /run/secrets/[secret-name] in the build container
     /// They can be accessed in the Dockerfile using the "secret" mount type and mount path /run/secrets/[secret-name], e.g. RUN --mount=type=secret,id=my-secret curl [http://example.com?token=$(cat /run/secrets/my-secret)](http://example.com?token=$(cat /run/secrets/my-secret))
@@ -1854,7 +1858,7 @@ pub struct ContainerPublishOpts {
     #[builder(setter(into, strip_option), default)]
     pub forced_compression: Option<ImageLayerCompression>,
     /// Use the specified media types for the published image's layers.
-    /// Defaults to OCI, which is largely compatible with most recent registries, but Docker may be needed for older registries without OCI support.
+    /// Defaults to "OCI", which is compatible with most recent registries, but "Docker" may be needed for older registries without OCI support.
     #[builder(setter(into, strip_option), default)]
     pub media_types: Option<ImageMediaTypes>,
     /// Identifiers for other platform specific containers.
@@ -1935,7 +1939,7 @@ pub struct ContainerWithDirectoryOpts<'a> {
 }
 #[derive(Builder, Debug, PartialEq)]
 pub struct ContainerWithEntrypointOpts {
-    /// Don't remove the default arguments when setting the entrypoint.
+    /// Don't reset the default arguments when setting the entrypoint. By default it is reset, since entrypoint and default args are often tightly coupled.
     #[builder(setter(into, strip_option), default)]
     pub keep_default_args: Option<bool>,
 }
@@ -1954,38 +1958,38 @@ pub struct ContainerWithExecOpts<'a> {
     #[builder(setter(into, strip_option), default)]
     pub expect: Option<ReturnType>,
     /// Provides Dagger access to the executed command.
-    /// Do not use this option unless you trust the command being executed; the command being executed WILL BE GRANTED FULL ACCESS TO YOUR HOST FILESYSTEM.
     #[builder(setter(into, strip_option), default)]
     pub experimental_privileged_nesting: Option<bool>,
-    /// Execute the command with all root capabilities. This is similar to running a command with "sudo" or executing "docker run" with the "--privileged" flag. Containerization does not provide any security guarantees when using this option. It should only be used when absolutely necessary and only with trusted commands.
+    /// Execute the command with all root capabilities. Like --privileged in Docker
+    /// DANGER: this grants the command full access to the host system. Only use when 1) you trust the command being executed and 2) you specifically need this level of access.
     #[builder(setter(into, strip_option), default)]
     pub insecure_root_capabilities: Option<bool>,
-    /// If set, skip the automatic init process injected into containers by default.
-    /// This should only be used if the user requires that their exec process be the pid 1 process in the container. Otherwise it may result in unexpected behavior.
+    /// Skip the automatic init process injected into containers by default.
+    /// Only use this if you specifically need the command to be pid 1 in the container. Otherwise it may result in unexpected behavior. If you're not sure, you don't need this.
     #[builder(setter(into, strip_option), default)]
     pub no_init: Option<bool>,
-    /// Redirect the command's standard error to a file in the container (e.g., "/tmp/stderr").
+    /// Like redirectStdout, but for standard error
     #[builder(setter(into, strip_option), default)]
     pub redirect_stderr: Option<&'a str>,
-    /// Redirect the command's standard output to a file in the container (e.g., "/tmp/stdout").
+    /// Redirect the command's standard output to a file in the container. Example: "./stdout.txt"
     #[builder(setter(into, strip_option), default)]
     pub redirect_stdout: Option<&'a str>,
-    /// Content to write to the command's standard input before closing (e.g., "Hello world").
+    /// Content to write to the command's standard input. Example: "Hello world")
     #[builder(setter(into, strip_option), default)]
     pub stdin: Option<&'a str>,
-    /// If the container has an entrypoint, prepend it to the args.
+    /// Apply the OCI entrypoint, if present, by prepending it to the args. Ignored by default.
     #[builder(setter(into, strip_option), default)]
     pub use_entrypoint: Option<bool>,
 }
 #[derive(Builder, Debug, PartialEq)]
 pub struct ContainerWithExposedPortOpts<'a> {
-    /// Optional port description
+    /// Port description. Example: "payment API endpoint"
     #[builder(setter(into, strip_option), default)]
     pub description: Option<&'a str>,
     /// Skip the health check when run as a service.
     #[builder(setter(into, strip_option), default)]
     pub experimental_skip_healthcheck: Option<bool>,
-    /// Transport layer network protocol
+    /// Network protocol. Example: "tcp"
     #[builder(setter(into, strip_option), default)]
     pub protocol: Option<NetworkProtocol>,
 }
@@ -1999,7 +2003,7 @@ pub struct ContainerWithFileOpts<'a> {
     /// If the group is omitted, it defaults to the same as the user.
     #[builder(setter(into, strip_option), default)]
     pub owner: Option<&'a str>,
-    /// Permission given to the copied file (e.g., 0600).
+    /// Permissions of the new file. Example: 0600
     #[builder(setter(into, strip_option), default)]
     pub permissions: Option<isize>,
 }
@@ -2091,7 +2095,7 @@ pub struct ContainerWithNewFileOpts<'a> {
     /// If the group is omitted, it defaults to the same as the user.
     #[builder(setter(into, strip_option), default)]
     pub owner: Option<&'a str>,
-    /// Permission given to the written file (e.g., 0600).
+    /// Permissions of the new file. Example: 0600
     #[builder(setter(into, strip_option), default)]
     pub permissions: Option<isize>,
 }
@@ -2204,7 +2208,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Returns a File representing the container serialized to a tarball.
+    /// Package the container state as an OCI image, and return it as a tar archive
     ///
     /// # Arguments
     ///
@@ -2217,7 +2221,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Returns a File representing the container serialized to a tarball.
+    /// Package the container state as an OCI image, and return it as a tar archive
     ///
     /// # Arguments
     ///
@@ -2291,18 +2295,21 @@ impl Container {
         if let Some(secrets) = opts.secrets {
             query = query.arg("secrets", secrets);
         }
+        if let Some(no_init) = opts.no_init {
+            query = query.arg("noInit", no_init);
+        }
         Container {
             proc: self.proc.clone(),
             selection: query,
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves default arguments for future commands.
+    /// Return the container's default arguments.
     pub async fn default_args(&self) -> Result<Vec<String>, DaggerError> {
         let query = self.selection.select("defaultArgs");
         query.execute(self.graphql_client.clone()).await
     }
-    /// Retrieves a directory at the given path.
+    /// Retrieve a directory from the container's root filesystem
     /// Mounts are included.
     ///
     /// # Arguments
@@ -2318,7 +2325,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves a directory at the given path.
+    /// Retrieve a directory from the container's root filesystem
     /// Mounts are included.
     ///
     /// # Arguments
@@ -2341,7 +2348,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves entrypoint to be prepended to the arguments of all commands.
+    /// Return the container's OCI entrypoint.
     pub async fn entrypoint(&self) -> Result<Vec<String>, DaggerError> {
         let query = self.selection.select("entrypoint");
         query.execute(self.graphql_client.clone()).await
@@ -2365,8 +2372,8 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }]
     }
-    /// The exit code of the last executed command.
-    /// Returns an error if no command was set.
+    /// The exit code of the last executed command
+    /// Returns an error if no command was executed
     pub async fn exit_code(&self) -> Result<isize, DaggerError> {
         let query = self.selection.select("exitCode");
         query.execute(self.graphql_client.clone()).await
@@ -2493,13 +2500,11 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Initializes this container from a pulled base image.
+    /// Download a container image, and apply it to the container state. All previous state will be lost.
     ///
     /// # Arguments
     ///
-    /// * `address` - Image's address from its registry.
-    ///
-    /// Formatted as [host]/[user]/[repo]:[tag] (e.g., "docker.io/dagger/dagger:main").
+    /// * `address` - Address of the container image to download, in standard OCI ref format. Example:"registry.dagger.io/engine:latest"
     pub fn from(&self, address: impl Into<String>) -> Container {
         let mut query = self.selection.select("from");
         query = query.arg("address", address.into());
@@ -2597,30 +2602,28 @@ impl Container {
         let query = self.selection.select("platform");
         query.execute(self.graphql_client.clone()).await
     }
-    /// Publishes this container as a new image to the specified address.
-    /// Publish returns a fully qualified ref.
-    /// It can also publish platform variants.
+    /// Package the container state as an OCI image, and publish it to a registry
+    /// Returns the fully qualified address of the published image, with digest
     ///
     /// # Arguments
     ///
-    /// * `address` - Registry's address to publish the image to.
+    /// * `address` - The OCI address to publish to
     ///
-    /// Formatted as [host]/[user]/[repo]:[tag] (e.g. "docker.io/dagger/dagger:main").
+    /// Same format as "docker push". Example: "registry.example.com/user/repo:tag"
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub async fn publish(&self, address: impl Into<String>) -> Result<String, DaggerError> {
         let mut query = self.selection.select("publish");
         query = query.arg("address", address.into());
         query.execute(self.graphql_client.clone()).await
     }
-    /// Publishes this container as a new image to the specified address.
-    /// Publish returns a fully qualified ref.
-    /// It can also publish platform variants.
+    /// Package the container state as an OCI image, and publish it to a registry
+    /// Returns the fully qualified address of the published image, with digest
     ///
     /// # Arguments
     ///
-    /// * `address` - Registry's address to publish the image to.
+    /// * `address` - The OCI address to publish to
     ///
-    /// Formatted as [host]/[user]/[repo]:[tag] (e.g. "docker.io/dagger/dagger:main").
+    /// Same format as "docker push". Example: "registry.example.com/user/repo:tag"
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub async fn publish_opts(
         &self,
@@ -2640,7 +2643,7 @@ impl Container {
         }
         query.execute(self.graphql_client.clone()).await
     }
-    /// Retrieves this container's root filesystem. Mounts are not included.
+    /// Return a snapshot of the container's root filesystem. The snapshot can be modified then written back using withRootfs. Use that method for filesystem modifications.
     pub fn rootfs(&self) -> Directory {
         let query = self.selection.select("rootfs");
         Directory {
@@ -2649,14 +2652,14 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// The error stream of the last executed command.
-    /// Returns an error if no command was set.
+    /// The buffered standard error stream of the last executed command
+    /// Returns an error if no command was executed
     pub async fn stderr(&self) -> Result<String, DaggerError> {
         let query = self.selection.select("stderr");
         query.execute(self.graphql_client.clone()).await
     }
-    /// The output stream of the last executed command.
-    /// Returns an error if no command was set.
+    /// The buffered standard output stream of the last executed command
+    /// Returns an error if no command was executed
     pub async fn stdout(&self) -> Result<String, DaggerError> {
         let query = self.selection.select("stdout");
         query.execute(self.graphql_client.clone()).await
@@ -2773,7 +2776,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Configures default arguments for future commands.
+    /// Configures default arguments for future commands. Like CMD in Dockerfile.
     ///
     /// # Arguments
     ///
@@ -2839,7 +2842,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container plus a directory written at the given path.
+    /// Return a new container snapshot, with a directory added to its filesystem
     ///
     /// # Arguments
     ///
@@ -2866,7 +2869,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container plus a directory written at the given path.
+    /// Return a new container snapshot, with a directory added to its filesystem
     ///
     /// # Arguments
     ///
@@ -2906,11 +2909,11 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container but with a different command entrypoint.
+    /// Set an OCI-style entrypoint. It will be included in the container's OCI configuration. Note, withExec ignores the entrypoint by default.
     ///
     /// # Arguments
     ///
-    /// * `args` - Entrypoint to use for future executions (e.g., ["go", "run"]).
+    /// * `args` - Arguments of the entrypoint. Example: ["go", "run"].
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_entrypoint(&self, args: Vec<impl Into<String>>) -> Container {
         let mut query = self.selection.select("withEntrypoint");
@@ -2924,11 +2927,11 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container but with a different command entrypoint.
+    /// Set an OCI-style entrypoint. It will be included in the container's OCI configuration. Note, withExec ignores the entrypoint by default.
     ///
     /// # Arguments
     ///
-    /// * `args` - Entrypoint to use for future executions (e.g., ["go", "run"]).
+    /// * `args` - Arguments of the entrypoint. Example: ["go", "run"].
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_entrypoint_opts(
         &self,
@@ -2949,12 +2952,12 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container plus the given environment variable.
+    /// Set a new environment variable in the container.
     ///
     /// # Arguments
     ///
-    /// * `name` - The name of the environment variable (e.g., "HOST").
-    /// * `value` - The value of the environment variable. (e.g., "localhost").
+    /// * `name` - Name of the environment variable (e.g., "HOST").
+    /// * `value` - Value of the environment variable. (e.g., "localhost").
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_env_variable(
         &self,
@@ -2970,12 +2973,12 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container plus the given environment variable.
+    /// Set a new environment variable in the container.
     ///
     /// # Arguments
     ///
-    /// * `name` - The name of the environment variable (e.g., "HOST").
-    /// * `value` - The value of the environment variable. (e.g., "localhost").
+    /// * `name` - Name of the environment variable (e.g., "HOST").
+    /// * `value` - Value of the environment variable. (e.g., "localhost").
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_env_variable_opts(
         &self,
@@ -2995,13 +2998,15 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container after executing the specified command inside it.
+    /// Execute a command in the container, and return a new snapshot of the container state after execution.
     ///
     /// # Arguments
     ///
-    /// * `args` - Command to run instead of the container's default command (e.g., ["go", "run", "main.go"]).
+    /// * `args` - Command to execute. Must be valid exec() arguments, not a shell command. Example: ["go", "run", "main.go"].
     ///
-    /// If empty, the container's default command is used.
+    /// To run a shell command, execute the shell and pass the shell command as argument. Example: ["sh", "-c", "ls -l | grep foo"]
+    ///
+    /// Defaults to the container's default arguments (see "defaultArgs" and "withDefaultArgs").
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_exec(&self, args: Vec<impl Into<String>>) -> Container {
         let mut query = self.selection.select("withExec");
@@ -3015,13 +3020,15 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container after executing the specified command inside it.
+    /// Execute a command in the container, and return a new snapshot of the container state after execution.
     ///
     /// # Arguments
     ///
-    /// * `args` - Command to run instead of the container's default command (e.g., ["go", "run", "main.go"]).
+    /// * `args` - Command to execute. Must be valid exec() arguments, not a shell command. Example: ["go", "run", "main.go"].
     ///
-    /// If empty, the container's default command is used.
+    /// To run a shell command, execute the shell and pass the shell command as argument. Example: ["sh", "-c", "ls -l | grep foo"]
+    ///
+    /// Defaults to the container's default arguments (see "defaultArgs" and "withDefaultArgs").
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_exec_opts<'a>(
         &self,
@@ -3069,14 +3076,14 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Expose a network port.
+    /// Expose a network port. Like EXPOSE in Dockerfile (but with healthcheck support)
     /// Exposed ports serve two purposes:
     /// - For health checks and introspection, when running services
     /// - For setting the EXPOSE OCI field when publishing the container
     ///
     /// # Arguments
     ///
-    /// * `port` - Port number to expose
+    /// * `port` - Port number to expose. Example: 8080
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_exposed_port(&self, port: isize) -> Container {
         let mut query = self.selection.select("withExposedPort");
@@ -3087,14 +3094,14 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Expose a network port.
+    /// Expose a network port. Like EXPOSE in Dockerfile (but with healthcheck support)
     /// Exposed ports serve two purposes:
     /// - For health checks and introspection, when running services
     /// - For setting the EXPOSE OCI field when publishing the container
     ///
     /// # Arguments
     ///
-    /// * `port` - Port number to expose
+    /// * `port` - Port number to expose. Example: 8080
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_exposed_port_opts<'a>(
         &self,
@@ -3118,12 +3125,12 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container plus the contents of the given file copied to the given path.
+    /// Return a container snapshot with a file added
     ///
     /// # Arguments
     ///
-    /// * `path` - Location of the copied file (e.g., "/tmp/file.txt").
-    /// * `source` - Identifier of the file to copy.
+    /// * `path` - Path of the new file. Example: "/path/to/new-file.txt"
+    /// * `source` - File to add
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_file(&self, path: impl Into<String>, source: impl IntoID<FileId>) -> Container {
         let mut query = self.selection.select("withFile");
@@ -3141,12 +3148,12 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container plus the contents of the given file copied to the given path.
+    /// Return a container snapshot with a file added
     ///
     /// # Arguments
     ///
-    /// * `path` - Location of the copied file (e.g., "/tmp/file.txt").
-    /// * `source` - Identifier of the file to copy.
+    /// * `path` - Path of the new file. Example: "/path/to/new-file.txt"
+    /// * `source` - File to add
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_file_opts<'a>(
         &self,
@@ -3535,12 +3542,12 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container plus a new file written at the given path.
+    /// Return a new container snapshot, with a file added to its filesystem
     ///
     /// # Arguments
     ///
-    /// * `path` - Location of the written file (e.g., "/tmp/file.txt").
-    /// * `contents` - Content of the file to write (e.g., "Hello world!").
+    /// * `path` - Path of the new file. May be relative or absolute. Example: "README.md" or "/etc/profile"
+    /// * `contents` - Contents of the new file. Example: "Hello world!"
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_new_file(&self, path: impl Into<String>, contents: impl Into<String>) -> Container {
         let mut query = self.selection.select("withNewFile");
@@ -3552,12 +3559,12 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container plus a new file written at the given path.
+    /// Return a new container snapshot, with a file added to its filesystem
     ///
     /// # Arguments
     ///
-    /// * `path` - Location of the written file (e.g., "/tmp/file.txt").
-    /// * `contents` - Content of the file to write (e.g., "Hello world!").
+    /// * `path` - Path of the new file. May be relative or absolute. Example: "README.md" or "/etc/profile"
+    /// * `contents` - Contents of the new file. Example: "Hello world!"
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_new_file_opts<'a>(
         &self,
@@ -3583,15 +3590,13 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container with a registry authentication for a given address.
+    /// Attach credentials for future publishing to a registry. Use in combination with publish
     ///
     /// # Arguments
     ///
-    /// * `address` - Registry's address to bind the authentication to.
-    ///
-    /// Formatted as [host]/[user]/[repo]:[tag] (e.g. docker.io/dagger/dagger:main).
-    /// * `username` - The username of the registry's account (e.g., "Dagger").
-    /// * `secret` - The API key, password or token to authenticate to this registry.
+    /// * `address` - The image address that needs authentication. Same format as "docker push". Example: "registry.dagger.io/dagger:latest"
+    /// * `username` - The username to authenticate with. Example: "alice"
+    /// * `secret` - The API key, password or token to authenticate to this registry
     pub fn with_registry_auth(
         &self,
         address: impl Into<String>,
@@ -3614,11 +3619,11 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves the container with the given directory mounted to /.
+    /// Change the container's root filesystem. The previous root filesystem will be lost.
     ///
     /// # Arguments
     ///
-    /// * `directory` - Directory to mount.
+    /// * `directory` - The new root filesystem.
     pub fn with_rootfs(&self, directory: impl IntoID<DirectoryId>) -> Container {
         let mut query = self.selection.select("withRootfs");
         query = query.arg_lazy(
@@ -3634,12 +3639,12 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container plus an env variable containing the given secret.
+    /// Set a new environment variable, using a secret value
     ///
     /// # Arguments
     ///
-    /// * `name` - The name of the secret variable (e.g., "API_SECRET").
-    /// * `secret` - The identifier of the secret value.
+    /// * `name` - Name of the secret variable (e.g., "API_SECRET").
+    /// * `secret` - Identifier of the secret value.
     pub fn with_secret_variable(
         &self,
         name: impl Into<String>,
@@ -3660,15 +3665,15 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Establish a runtime dependency on a service.
+    /// Establish a runtime dependency on a from a container to a network service.
     /// The service will be started automatically when needed and detached when it is no longer needed, executing the default command if none is set.
     /// The service will be reachable from the container via the provided hostname alias.
     /// The service dependency will also convey to any files or directories produced by the container.
     ///
     /// # Arguments
     ///
-    /// * `alias` - A name that can be used to reach the service from the container
-    /// * `service` - Identifier of the service container
+    /// * `alias` - Hostname that will resolve to the target service (only accessible from within this container)
+    /// * `service` - The target service
     pub fn with_service_binding(
         &self,
         alias: impl Into<String>,
@@ -3764,7 +3769,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container with a different working directory.
+    /// Change the container's working directory. Like WORKDIR in Dockerfile.
     ///
     /// # Arguments
     ///
@@ -3779,7 +3784,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container with a different working directory.
+    /// Change the container's working directory. Like WORKDIR in Dockerfile.
     ///
     /// # Arguments
     ///
@@ -3815,7 +3820,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container with unset default arguments for future commands.
+    /// Remove the container's default arguments.
     pub fn without_default_args(&self) -> Container {
         let query = self.selection.select("withoutDefaultArgs");
         Container {
@@ -3824,7 +3829,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container with the directory at the given path removed.
+    /// Return a new container snapshot, with a directory removed from its filesystem
     ///
     /// # Arguments
     ///
@@ -3839,7 +3844,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container with the directory at the given path removed.
+    /// Return a new container snapshot, with a directory removed from its filesystem
     ///
     /// # Arguments
     ///
@@ -3861,7 +3866,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container with an unset command entrypoint.
+    /// Reset the container's OCI entrypoint.
     ///
     /// # Arguments
     ///
@@ -3874,7 +3879,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container with an unset command entrypoint.
+    /// Reset the container's OCI entrypoint.
     ///
     /// # Arguments
     ///
@@ -3978,11 +3983,11 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container with the files at the given paths removed.
+    /// Return a new container spanshot with specified files removed
     ///
     /// # Arguments
     ///
-    /// * `paths` - Location of the files to remove (e.g., ["/file.txt"]).
+    /// * `paths` - Paths of the files to remove. Example: ["foo.txt, "/root/.ssh/config"
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn without_files(&self, paths: Vec<impl Into<String>>) -> Container {
         let mut query = self.selection.select("withoutFiles");
@@ -3996,11 +4001,11 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container with the files at the given paths removed.
+    /// Return a new container spanshot with specified files removed
     ///
     /// # Arguments
     ///
-    /// * `paths` - Location of the files to remove (e.g., ["/file.txt"]).
+    /// * `paths` - Paths of the files to remove. Example: ["foo.txt, "/root/.ssh/config"
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn without_files_opts(
         &self,
@@ -4149,7 +4154,7 @@ impl Container {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this container with an unset working directory.
+    /// Unset the container's working directory.
     /// Should default to "/".
     pub fn without_workdir(&self) -> Container {
         let query = self.selection.select("withoutWorkdir");
@@ -4283,6 +4288,10 @@ pub struct DirectoryDockerBuildOpts<'a> {
     /// Path to the Dockerfile to use (e.g., "frontend.Dockerfile").
     #[builder(setter(into, strip_option), default)]
     pub dockerfile: Option<&'a str>,
+    /// If set, skip the automatic init process injected into containers created by RUN statements.
+    /// This should only be used if the user requires that their exec processes be the pid 1 process in the container. Otherwise it may result in unexpected behavior.
+    #[builder(setter(into, strip_option), default)]
+    pub no_init: Option<bool>,
     /// The platform to build.
     #[builder(setter(into, strip_option), default)]
     pub platform: Option<Platform>,
@@ -4308,10 +4317,10 @@ pub struct DirectoryExportOpts {
 }
 #[derive(Builder, Debug, PartialEq)]
 pub struct DirectoryFilterOpts<'a> {
-    /// Exclude artifacts that match the given pattern (e.g., ["node_modules/", ".git*"]).
+    /// If set, paths matching one of these glob patterns is excluded from the new snapshot. Example: ["node_modules/", ".git*", ".env"]
     #[builder(setter(into, strip_option), default)]
     pub exclude: Option<Vec<&'a str>>,
-    /// Include only artifacts that match the given pattern (e.g., ["app/", "package.*"]).
+    /// If set, only paths matching one of these glob patterns is included in the new snapshot. Example: (e.g., ["app/", "package.*"]).
     #[builder(setter(into, strip_option), default)]
     pub include: Option<Vec<&'a str>>,
 }
@@ -4360,12 +4369,12 @@ pub struct DirectoryWithNewDirectoryOpts {
 }
 #[derive(Builder, Debug, PartialEq)]
 pub struct DirectoryWithNewFileOpts {
-    /// Permission given to the copied file (e.g., 0600).
+    /// Permissions of the new file. Example: 0600
     #[builder(setter(into, strip_option), default)]
     pub permissions: Option<isize>,
 }
 impl Directory {
-    /// Converts this directory into a git repository
+    /// Converts this directory to a local git repository
     pub fn as_git(&self) -> GitRepository {
         let query = self.selection.select("asGit");
         GitRepository {
@@ -4432,11 +4441,11 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Gets the difference between this directory and an another directory.
+    /// Return the difference between this directory and an another directory. The difference is encoded as a directory.
     ///
     /// # Arguments
     ///
-    /// * `other` - Identifier of the directory to compare.
+    /// * `other` - The directory to compare against
     pub fn diff(&self, other: impl IntoID<DirectoryId>) -> Directory {
         let mut query = self.selection.select("diff");
         query = query.arg_lazy(
@@ -4461,7 +4470,7 @@ impl Directory {
     ///
     /// # Arguments
     ///
-    /// * `path` - Location of the directory to retrieve (e.g., "/src").
+    /// * `path` - Location of the directory to retrieve. Example: "/src"
     pub fn directory(&self, path: impl Into<String>) -> Directory {
         let mut query = self.selection.select("directory");
         query = query.arg("path", path.into());
@@ -4471,7 +4480,7 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Builds a new Docker container from this directory.
+    /// Use Dockerfile compatibility to build a container from this directory. Only use this function for Dockerfile compatibility. Otherwise use the native Container type directly, it is feature-complete and supports all Dockerfile features.
     ///
     /// # Arguments
     ///
@@ -4484,7 +4493,7 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Builds a new Docker container from this directory.
+    /// Use Dockerfile compatibility to build a container from this directory. Only use this function for Dockerfile compatibility. Otherwise use the native Container type directly, it is feature-complete and supports all Dockerfile features.
     ///
     /// # Arguments
     ///
@@ -4505,6 +4514,9 @@ impl Directory {
         }
         if let Some(secrets) = opts.secrets {
             query = query.arg("secrets", secrets);
+        }
+        if let Some(no_init) = opts.no_init {
+            query = query.arg("noInit", no_init);
         }
         Container {
             proc: self.proc.clone(),
@@ -4565,7 +4577,7 @@ impl Directory {
         }
         query.execute(self.graphql_client.clone()).await
     }
-    /// Retrieves a file at the given path.
+    /// Retrieve a file at the given path.
     ///
     /// # Arguments
     ///
@@ -4579,7 +4591,7 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this directory as per exclude/include filters.
+    /// Return a snapshot with some paths included or excluded
     ///
     /// # Arguments
     ///
@@ -4592,7 +4604,7 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this directory as per exclude/include filters.
+    /// Return a snapshot with some paths included or excluded
     ///
     /// # Arguments
     ///
@@ -4677,7 +4689,7 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this directory plus a directory written at the given path.
+    /// Return a snapshot with a directory added
     ///
     /// # Arguments
     ///
@@ -4704,7 +4716,7 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this directory plus a directory written at the given path.
+    /// Return a snapshot with a directory added
     ///
     /// # Arguments
     ///
@@ -4871,12 +4883,12 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this directory plus a new file written at the given path.
+    /// Return a snapshot with a new file added
     ///
     /// # Arguments
     ///
-    /// * `path` - Location of the written file (e.g., "/file.txt").
-    /// * `contents` - Content of the written file (e.g., "Hello world!").
+    /// * `path` - Path of the new file. Example: "foo/bar.txt"
+    /// * `contents` - Contents of the new file. Example: "Hello world!"
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_new_file(&self, path: impl Into<String>, contents: impl Into<String>) -> Directory {
         let mut query = self.selection.select("withNewFile");
@@ -4888,12 +4900,12 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this directory plus a new file written at the given path.
+    /// Return a snapshot with a new file added
     ///
     /// # Arguments
     ///
-    /// * `path` - Location of the written file (e.g., "/file.txt").
-    /// * `contents` - Content of the written file (e.g., "Hello world!").
+    /// * `path` - Path of the new file. Example: "foo/bar.txt"
+    /// * `contents` - Contents of the new file. Example: "Hello world!"
     /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn with_new_file_opts(
         &self,
@@ -4929,11 +4941,11 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this directory with the directory at the given path removed.
+    /// Return a snapshot with a subdirectory removed
     ///
     /// # Arguments
     ///
-    /// * `path` - Location of the directory to remove (e.g., ".github/").
+    /// * `path` - Path of the subdirectory to remove. Example: ".github/workflows"
     pub fn without_directory(&self, path: impl Into<String>) -> Directory {
         let mut query = self.selection.select("withoutDirectory");
         query = query.arg("path", path.into());
@@ -4943,11 +4955,11 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this directory with the file at the given path removed.
+    /// Return a snapshot with a file removed
     ///
     /// # Arguments
     ///
-    /// * `path` - Location of the file to remove (e.g., "/file.txt").
+    /// * `path` - Path of the file to remove (e.g., "/file.txt").
     pub fn without_file(&self, path: impl Into<String>) -> Directory {
         let mut query = self.selection.select("withoutFile");
         query = query.arg("path", path.into());
@@ -4957,11 +4969,11 @@ impl Directory {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Retrieves this directory with the files at the given paths removed.
+    /// Return a snapshot with files removed
     ///
     /// # Arguments
     ///
-    /// * `paths` - Location of the file to remove (e.g., ["/file.txt"]).
+    /// * `paths` - Paths of the files to remove (e.g., ["/file.txt"]).
     pub fn without_files(&self, paths: Vec<impl Into<String>>) -> Directory {
         let mut query = self.selection.select("withoutFiles");
         query = query.arg(
@@ -7232,15 +7244,6 @@ impl Llm {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Provide the entire Query object to the LLM
-    pub fn with_query(&self) -> Llm {
-        let query = self.selection.select("withQuery");
-        Llm {
-            proc: self.proc.clone(),
-            selection: query,
-            graphql_client: self.graphql_client.clone(),
-        }
-    }
     /// Add a system prompt to the LLM's environment
     ///
     /// # Arguments
@@ -7990,9 +7993,15 @@ pub struct QueryCacheVolumeOpts<'a> {
 }
 #[derive(Builder, Debug, PartialEq)]
 pub struct QueryContainerOpts {
-    /// Platform to initialize the container with.
+    /// Platform to initialize the container with. Defaults to the native platform of the current engine
     #[builder(setter(into, strip_option), default)]
     pub platform: Option<Platform>,
+}
+#[derive(Builder, Debug, PartialEq)]
+pub struct QueryEnvOpts {
+    /// Give the environment the same privileges as the caller: core API including host access, current module, and dependencies
+    #[builder(setter(into, strip_option), default)]
+    pub privileged: Option<bool>,
 }
 #[derive(Builder, Debug, PartialEq)]
 pub struct QueryGitOpts<'a> {
@@ -8023,11 +8032,6 @@ pub struct QueryLlmOpts<'a> {
     /// Model to use
     #[builder(setter(into, strip_option), default)]
     pub model: Option<&'a str>,
-}
-#[derive(Builder, Debug, PartialEq)]
-pub struct QueryLoadSecretFromNameOpts<'a> {
-    #[builder(setter(into, strip_option), default)]
-    pub accessor: Option<&'a str>,
 }
 #[derive(Builder, Debug, PartialEq)]
 pub struct QueryModuleSourceOpts<'a> {
@@ -8082,8 +8086,8 @@ impl Query {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Creates a scratch container.
-    /// Optional platform argument initializes new containers to execute and publish as that platform. Platform defaults to that of the builder's host.
+    /// Creates a scratch container, with no image or metadata.
+    /// To pull an image, follow up with the "from" function.
     ///
     /// # Arguments
     ///
@@ -8096,8 +8100,8 @@ impl Query {
             graphql_client: self.graphql_client.clone(),
         }
     }
-    /// Creates a scratch container.
-    /// Optional platform argument initializes new containers to execute and publish as that platform. Platform defaults to that of the builder's host.
+    /// Creates a scratch container, with no image or metadata.
+    /// To pull an image, follow up with the "from" function.
     ///
     /// # Arguments
     ///
@@ -8165,8 +8169,28 @@ impl Query {
         }
     }
     /// Initialize a new environment
+    ///
+    /// # Arguments
+    ///
+    /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
     pub fn env(&self) -> Env {
         let query = self.selection.select("env");
+        Env {
+            proc: self.proc.clone(),
+            selection: query,
+            graphql_client: self.graphql_client.clone(),
+        }
+    }
+    /// Initialize a new environment
+    ///
+    /// # Arguments
+    ///
+    /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
+    pub fn env_opts(&self, opts: QueryEnvOpts) -> Env {
+        let mut query = self.selection.select("env");
+        if let Some(privileged) = opts.privileged {
+            query = query.arg("privileged", privileged);
+        }
         Env {
             proc: self.proc.clone(),
             selection: query,
@@ -8989,41 +9013,6 @@ impl Query {
                 Box::pin(async move { id.into_id().await.unwrap().quote() })
             }),
         );
-        Secret {
-            proc: self.proc.clone(),
-            selection: query,
-            graphql_client: self.graphql_client.clone(),
-        }
-    }
-    /// Load a Secret from its Name.
-    ///
-    /// # Arguments
-    ///
-    /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
-    pub fn load_secret_from_name(&self, name: impl Into<String>) -> Secret {
-        let mut query = self.selection.select("loadSecretFromName");
-        query = query.arg("name", name.into());
-        Secret {
-            proc: self.proc.clone(),
-            selection: query,
-            graphql_client: self.graphql_client.clone(),
-        }
-    }
-    /// Load a Secret from its Name.
-    ///
-    /// # Arguments
-    ///
-    /// * `opt` - optional argument, see inner type for documentation, use <func>_opts to use
-    pub fn load_secret_from_name_opts<'a>(
-        &self,
-        name: impl Into<String>,
-        opts: QueryLoadSecretFromNameOpts<'a>,
-    ) -> Secret {
-        let mut query = self.selection.select("loadSecretFromName");
-        query = query.arg("name", name.into());
-        if let Some(accessor) = opts.accessor {
-            query = query.arg("accessor", accessor);
-        }
         Secret {
             proc: self.proc.clone(),
             selection: query,
