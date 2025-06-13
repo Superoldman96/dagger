@@ -574,6 +574,8 @@ func (srv *Server) initializeDaggerClient(
 
 	// setup the graphql server + module/function state for the client
 	client.dagqlRoot = core.NewRoot(srv)
+	// make query available via context to all APIs
+	ctx = core.ContextWithQuery(ctx, client.dagqlRoot)
 
 	client.dag = dagql.NewServer(client.dagqlRoot, client.daggerSession.dagqlCache)
 	client.dag.Around(core.AroundFunc)
@@ -624,7 +626,6 @@ func (srv *Server) initializeDaggerClient(
 		if err := json.Unmarshal(opts.EncodedFunctionCall, &fnCall); err != nil {
 			return fmt.Errorf("failed to decode function call: %w", err)
 		}
-		fnCall.Query = client.dagqlRoot
 		client.fnCall = &fnCall
 	}
 
@@ -642,12 +643,7 @@ func (srv *Server) initializeDaggerClient(
 	}
 	loggerOpts := []sdklog.LoggerProviderOption{
 		sdklog.WithResource(telemetry.Resource),
-		sdklog.WithProcessor(
-			sdklog.NewBatchProcessor(
-				srv.telemetryPubSub.Logs(client),
-				sdklog.WithExportInterval(telemetry.NearlyImmediate),
-			),
-		),
+		sdklog.WithProcessor(clientLogs{client: client}),
 	}
 
 	const metricReaderInterval = 1 * time.Second
@@ -668,10 +664,7 @@ func (srv *Server) initializeDaggerClient(
 			),
 		))
 		loggerOpts = append(loggerOpts, sdklog.WithProcessor(
-			sdklog.NewBatchProcessor(
-				srv.telemetryPubSub.Logs(parent),
-				sdklog.WithExportInterval(telemetry.NearlyImmediate),
-			),
+			clientLogs{client: parent},
 		))
 		meterOpts = append(meterOpts, sdkmetric.WithReader(
 			sdkmetric.NewPeriodicReader(
@@ -1124,6 +1117,10 @@ func (srv *Server) serveQuery(w http.ResponseWriter, r *http.Request, client *da
 	// install a logger+meter provider that records to the client's DB
 	ctx = telemetry.WithLoggerProvider(ctx, client.loggerProvider)
 	ctx = telemetry.WithMeterProvider(ctx, client.meterProvider)
+
+	// make query available via context to all APIs
+	ctx = core.ContextWithQuery(ctx, client.dagqlRoot)
+
 	r = r.WithContext(ctx)
 
 	// get the schema we're gonna serve to this client based on which modules they have loaded, if any

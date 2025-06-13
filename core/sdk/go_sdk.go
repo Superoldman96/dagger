@@ -203,6 +203,7 @@ func (sdk *goSDK) Codegen(
 			"internal/dagger",
 			"internal/querybuilder",
 			"internal/telemetry",
+			".env", // this is here because the Go SDK does not use WithVCSIgnoredPaths on core/codegen/GeneratedCode
 		},
 	}, nil
 }
@@ -398,7 +399,7 @@ func (sdk *goSDK) baseWithCodegen(
 	}
 
 	// fetch gitconfig selectors
-	bk, err := src.Self.Query.Buildkit(ctx)
+	bk, err := sdk.root.Buildkit(ctx)
 	if err != nil {
 		return ctr, err
 	}

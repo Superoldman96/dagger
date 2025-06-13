@@ -36,10 +36,30 @@ func assertNotNil(argName string, value any) {
 
 type DaggerObject = querybuilder.GraphQLMarshaller
 
+type gqlExtendedError struct {
+	inner *gqlerror.Error
+}
+
+// Same as telemetry.ExtendedError, but without the dependency, to simplify
+// client generation.
+type extendedError interface {
+	error
+	Extensions() map[string]any
+}
+
+var _ extendedError = gqlExtendedError{}
+
+func (e gqlExtendedError) Error() string {
+	return e.inner.Message
+}
+
+func (e gqlExtendedError) Extensions() map[string]any {
+	return e.inner.Extensions
+}
+
 // getCustomError parses a GraphQL error into a more specific error type.
 func getCustomError(err error) error {
 	var gqlErr *gqlerror.Error
-
 	if !errors.As(err, &gqlErr) {
 		return nil
 	}
@@ -48,12 +68,12 @@ func getCustomError(err error) error {
 
 	typ, ok := ext["_type"].(string)
 	if !ok {
-		return nil
+		return gqlExtendedError{gqlErr}
 	}
 
 	if typ == "EXEC_ERROR" {
 		e := &ExecError{
-			original: err,
+			original: gqlErr,
 		}
 		if code, ok := ext["exitCode"].(float64); ok {
 			e.ExitCode = int(code)
@@ -74,20 +94,26 @@ func getCustomError(err error) error {
 		return e
 	}
 
-	return nil
+	return gqlExtendedError{gqlErr}
 }
 
 // ExecError is an API error from an exec operation.
 type ExecError struct {
-	original error
+	original *gqlerror.Error
 	Cmd      []string
 	ExitCode int
 	Stdout   string
 	Stderr   string
 }
 
+var _ extendedError = (*ExecError)(nil)
+
 func (e *ExecError) Error() string {
 	return e.Message()
+}
+
+func (e *ExecError) Extensions() map[string]any {
+	return e.original.Extensions
 }
 
 func (e *ExecError) Message() string {
@@ -2016,6 +2042,29 @@ func (r *Container) WithServiceBinding(alias string, service *Service) *Containe
 	}
 }
 
+// ContainerWithSymlinkOpts contains options for Container.WithSymlink
+type ContainerWithSymlinkOpts struct {
+	// Replace "${VAR}" or "$VAR" in the value of path according to the current environment variables defined in the container (e.g. "/$VAR/foo.txt").
+	Expand bool
+}
+
+// Return a snapshot with a symlink
+func (r *Container) WithSymlink(target string, linkName string, opts ...ContainerWithSymlinkOpts) *Container {
+	q := r.query.Select("withSymlink")
+	for i := len(opts) - 1; i >= 0; i-- {
+		// `expand` optional argument
+		if !querybuilder.IsZeroValue(opts[i].Expand) {
+			q = q.Arg("expand", opts[i].Expand)
+		}
+	}
+	q = q.Arg("target", target)
+	q = q.Arg("linkName", linkName)
+
+	return &Container{
+		query: q,
+	}
+}
+
 // ContainerWithUnixSocketOpts contains options for Container.WithUnixSocket
 type ContainerWithUnixSocketOpts struct {
 	// A user:group to set for the mounted socket.
@@ -2941,6 +2990,17 @@ func (r *Directory) WithNewFile(path string, contents string, opts ...DirectoryW
 	}
 	q = q.Arg("path", path)
 	q = q.Arg("contents", contents)
+
+	return &Directory{
+		query: q,
+	}
+}
+
+// Return a snapshot with a symlink
+func (r *Directory) WithSymlink(target string, linkName string) *Directory {
+	q := r.query.Select("withSymlink")
+	q = q.Arg("target", target)
+	q = q.Arg("linkName", linkName)
 
 	return &Directory{
 		query: q,
