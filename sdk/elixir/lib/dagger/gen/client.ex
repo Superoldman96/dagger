@@ -16,15 +16,26 @@ defmodule Dagger.Client do
   @doc """
   Constructs a cache volume for a given cache key.
   """
-  @spec cache_volume(t(), String.t(), [{:namespace, String.t() | nil}]) :: Dagger.CacheVolume.t()
-  def cache_volume(%__MODULE__{} = client, key, optional_args \\ []) do
+  @spec cache_volume(t(), String.t()) :: Dagger.CacheVolume.t()
+  def cache_volume(%__MODULE__{} = client, key) do
     query_builder =
-      client.query_builder
-      |> QB.select("cacheVolume")
-      |> QB.put_arg("key", key)
-      |> QB.maybe_put_arg("namespace", optional_args[:namespace])
+      client.query_builder |> QB.select("cacheVolume") |> QB.put_arg("key", key)
 
     %Dagger.CacheVolume{
+      query_builder: query_builder,
+      client: client.client
+    }
+  end
+
+  @doc """
+  Dagger Cloud configuration and state
+  """
+  @spec cloud(t()) :: Dagger.Cloud.t()
+  def cloud(%__MODULE__{} = client) do
+    query_builder =
+      client.query_builder |> QB.select("cloud")
+
+    %Dagger.Cloud{
       query_builder: query_builder,
       client: client.client
     }
@@ -232,6 +243,7 @@ defmodule Dagger.Client do
           {:keep_git_dir, boolean() | nil},
           {:ssh_known_hosts, String.t() | nil},
           {:ssh_auth_socket, Dagger.SocketID.t() | nil},
+          {:http_auth_username, String.t() | nil},
           {:http_auth_token, Dagger.SecretID.t() | nil},
           {:http_auth_header, Dagger.SecretID.t() | nil},
           {:experimental_service_host, Dagger.ServiceID.t() | nil}
@@ -244,6 +256,7 @@ defmodule Dagger.Client do
       |> QB.maybe_put_arg("keepGitDir", optional_args[:keep_git_dir])
       |> QB.maybe_put_arg("sshKnownHosts", optional_args[:ssh_known_hosts])
       |> QB.maybe_put_arg("sshAuthSocket", optional_args[:ssh_auth_socket])
+      |> QB.maybe_put_arg("httpAuthUsername", optional_args[:http_auth_username])
       |> QB.maybe_put_arg("httpAuthToken", optional_args[:http_auth_token])
       |> QB.maybe_put_arg("httpAuthHeader", optional_args[:http_auth_header])
       |> QB.maybe_put_arg("experimentalServiceHost", optional_args[:experimental_service_host])
@@ -338,6 +351,20 @@ defmodule Dagger.Client do
       client.query_builder |> QB.select("loadCacheVolumeFromID") |> QB.put_arg("id", id)
 
     %Dagger.CacheVolume{
+      query_builder: query_builder,
+      client: client.client
+    }
+  end
+
+  @doc """
+  Load a Cloud from its ID.
+  """
+  @spec load_cloud_from_id(t(), Dagger.CloudID.t()) :: Dagger.Cloud.t()
+  def load_cloud_from_id(%__MODULE__{} = client, id) do
+    query_builder =
+      client.query_builder |> QB.select("loadCloudFromID") |> QB.put_arg("id", id)
+
+    %Dagger.Cloud{
       query_builder: query_builder,
       client: client.client
     }

@@ -12,6 +12,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/koron-go/prefixw"
@@ -43,7 +44,7 @@ func TestMain(m *testing.M) {
 
 func Middleware() []testctx.Middleware[*testing.T] {
 	return []testctx.Middleware[*testing.T]{
-		oteltest.WithTracing[*testing.T](
+		oteltest.WithTracing(
 			oteltest.TraceConfig[*testing.T]{
 				StartOptions: testutil.SpanOpts[*testing.T],
 			},
@@ -70,6 +71,7 @@ func (s TelemetrySuite) TestGolden(ctx context.Context, t *testctx.T) {
 		{Function: "fail-effect", Fail: true},
 		{Function: "fail-log-native", Fail: true},
 		{Function: "encapsulate"},
+		{Function: "fail-encapsulated", Fail: true},
 		{Function: "pending", Fail: true},
 		{Function: "list", Args: []string{"--dir", "."}},
 		{Function: "object-lists"},
@@ -136,6 +138,10 @@ func (s TelemetrySuite) TestGolden(ctx context.Context, t *testctx.T) {
 		// test that a module with a broken dependency surfaces the error
 		{Module: "./viztest/broken-dep", Function: "use-broken", Fail: true},
 
+		// test that module function call errors are properly stamped with their origin
+		{Function: "call-failing-dep", Fail: true},
+		{Function: "call-bubbling-dep", Fail: true},
+
 		// FIXME: these constantly fail in CI/Dagger, but not against a local
 		// engine. spent a day investigating, don't have a good explanation. it
 		// fails because despite the warmup running to completion, the test gets a
@@ -150,6 +156,9 @@ func (s TelemetrySuite) TestGolden(ctx context.Context, t *testctx.T) {
 		// TypeScript SDK tests
 		{Module: "./viztest/typescript", Function: "pending", Fail: true},
 		{Module: "./viztest/typescript", Function: "custom-span"},
+		{Module: "./viztest/typescript", Function: "fail-log", Fail: true},
+		{Module: "./viztest/typescript", Function: "fail-effect", Fail: true},
+		{Module: "./viztest/typescript", Function: "fail-log-native", Fail: true},
 	} {
 		testName := ex.Function
 		if ex.Module != "" {
@@ -204,7 +213,7 @@ func (ex Example) Run(ctx context.Context, t *testctx.T, s TelemetrySuite) (stri
 		daggerBin = bin
 	}
 
-	daggerArgs := []string{"--progress=report", "call", "-m", ex.Module, ex.Function}
+	daggerArgs := []string{"--progress=report", "-v", "call", "-m", ex.Module, ex.Function}
 	daggerArgs = append(daggerArgs, ex.Args...)
 
 	if ex.Verbosity > 0 {
@@ -488,9 +497,13 @@ type otlpReceiver struct {
 	t      *testctx.T
 	traces sdktrace.SpanExporter
 	logs   sdklog.Exporter
+	mu     sync.Mutex
 }
 
 func (o *otlpReceiver) TracesHandler(w http.ResponseWriter, r *http.Request) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		slog.Warn("error reading body", "err", err)
@@ -523,6 +536,9 @@ func (o *otlpReceiver) TracesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *otlpReceiver) LogsHandler(w http.ResponseWriter, r *http.Request) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		slog.Warn("error reading body", "err", err)

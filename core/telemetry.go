@@ -2,13 +2,11 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
 	"dagger.io/dagger/telemetry"
@@ -17,7 +15,11 @@ import (
 	"github.com/dagger/dagger/engine/slog"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/opencontainers/go-digest"
-	"github.com/vektah/gqlparser/v2/gqlerror"
+)
+
+const (
+	// name of arg indicating whether the op should execute the "unlazy" dagop impl
+	IsDagOpArgName = "isDagOp"
 )
 
 func collectDefs(ctx context.Context, val dagql.Typed) []*pb.Definition {
@@ -32,14 +34,20 @@ func collectDefs(ctx context.Context, val dagql.Typed) []*pb.Definition {
 	return nil
 }
 
-func AroundFunc(ctx context.Context, self dagql.Object, id *call.ID) (context.Context, func(res dagql.Typed, cached bool, rerr error)) {
-	if isIntrospection(id) || isMeta(id) {
-		// very uninteresting spans
-		return ctx, dagql.NoopDone
-	}
-	if DagOpInContext[RawDagOp](ctx) || DagOpInContext[FSDagOp](ctx) || DagOpInContext[ContainerDagOp](ctx) {
+var _ dagql.AroundFunc = AroundFunc
+
+func AroundFunc(
+	ctx context.Context,
+	self dagql.Object,
+	id *call.ID,
+) (
+	context.Context,
+	func(res dagql.Typed, cached bool, rerr error),
+) {
+	if isIntrospection(id) || isMeta(id) || isDagOp(id) {
+		// introspection+meta are very uninteresting spans
 		// dagops are all self calls, no need to emit additional spans here
-		// FIXME: we lose telemetry.SpanStdio info from here
+		// FIXME: we lose telemetry.SpanStdio info in dagops from here
 		return ctx, dagql.NoopDone
 	}
 
@@ -77,12 +85,7 @@ func AroundFunc(ctx context.Context, self dagql.Object, id *call.ID) (context.Co
 	ctx, span := Tracer(ctx).Start(ctx, spanName, trace.WithAttributes(attrs...))
 
 	return ctx, func(res dagql.Typed, cached bool, err error) {
-		defer telemetry.End(span, func() error {
-			if err != nil {
-				return errors.New(unwrapError(err))
-			}
-			return nil
-		})
+		defer telemetry.End(span, func() error { return err })
 		recordStatus(ctx, res, span, cached, err, id)
 		logResult(ctx, res, self, id)
 		collectEffects(ctx, res, span, self)
@@ -119,11 +122,7 @@ func recordStatus(ctx context.Context, res dagql.Typed, span trace.Span, cached 
 		}
 	}
 
-	if err == nil {
-		// It is important to set an Ok status here so functions can encapsulate
-		// any internal errors.
-		span.SetStatus(codes.Ok, "")
-	} else {
+	if err != nil {
 		// append id.Display() instead of setting it as a field to avoid double
 		// quoting
 		slog.Warn("error resolving "+id.Display(), "error", err)
@@ -242,6 +241,15 @@ func isMeta(id *call.ID) bool {
 	}
 }
 
+func isDagOp(id *call.ID) bool {
+	for _, arg := range id.Args() {
+		if arg.Name() == IsDagOpArgName {
+			return true
+		}
+	}
+	return false
+}
+
 // anyReturns returns true if the call or any of its ancestors return any of
 // the given types.
 func anyReturns(id *call.ID, types ...string) bool {
@@ -254,15 +262,4 @@ func anyReturns(id *call.ID, types ...string) bool {
 	} else {
 		return false
 	}
-}
-
-// trim down unnecessary details from the error; we don't want to pollute
-// telemetry errors with large chains like container.withExec.withExec since
-// that info is better represented by the trace itself
-func unwrapError(rerr error) string {
-	var gqlErr *gqlerror.Error
-	if errors.As(rerr, &gqlErr) {
-		return gqlErr.Message
-	}
-	return rerr.Error()
 }
